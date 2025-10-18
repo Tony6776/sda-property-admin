@@ -60,9 +60,9 @@ const Header = () => {
 
           {/* CTA Buttons */}
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="hidden lg:flex items-center space-x-2"
               aria-label="Call our 24/7 SDA helpline at 1800 SDA HELP"
               onClick={() => window.open('tel:1800732435', '_self')}
@@ -70,7 +70,15 @@ const Header = () => {
               <Phone className="h-4 w-4" aria-hidden="true" />
               <span>1800 SDA HELP</span>
             </Button>
-            <Button 
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Admin login"
+              onClick={() => window.location.href = '/admin/login'}
+            >
+              Admin
+            </Button>
+            <Button
               className="btn-bounce"
               aria-label="Start your SDA eligibility assessment"
               onClick={() => window.location.href = '/eligibility'}
