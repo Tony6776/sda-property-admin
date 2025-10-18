@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.sql
+*.md
+apply-*.ts
+test-*.ts
+trigger-*.ts
+supabase/
+bun.lockb
