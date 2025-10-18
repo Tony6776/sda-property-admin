@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, available: 0 });
 
   useEffect(() => {
     // Verify admin access
@@ -21,10 +22,32 @@ export default function AdminDashboard() {
         navigate('/admin/login');
       } else {
         setProfile(profile);
+        fetchStats();
       }
       setLoading(false);
     });
   }, [navigate]);
+
+  const fetchStats = async () => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      // Get total properties
+      const { count: total } = await supabase
+        .from('properties')
+        .select('*', { count: 'exact', head: true });
+
+      // Get available properties
+      const { count: available } = await supabase
+        .from('properties')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'available');
+
+      setStats({ total: total || 0, available: available || 0 });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -91,7 +114,7 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">9</div>
+              <div className="text-3xl font-bold">{stats.total}</div>
               <p className="text-xs text-muted-foreground mt-1">In database</p>
             </CardContent>
           </Card>
@@ -103,7 +126,7 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">6</div>
+              <div className="text-3xl font-bold">{stats.available}</div>
               <p className="text-xs text-muted-foreground mt-1">Ready to view</p>
             </CardContent>
           </Card>
@@ -130,21 +153,33 @@ export default function AdminDashboard() {
 
           {/* Sidebar - Takes up 1 column */}
           <div className="space-y-6">
-            <AirtableSync />
+            <AirtableSync onSyncComplete={fetchStats} />
 
             <Card>
               <CardHeader>
                 <CardTitle>Quick Links</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start" disabled>
-                  Admin Settings
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/properties/new')}
+                >
+                  Add New Property
                 </Button>
-                <Button variant="outline" className="w-full justify-start" disabled>
-                  User Management
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/')}
+                >
+                  View Public Site
                 </Button>
-                <Button variant="outline" className="w-full justify-start" disabled>
-                  System Logs
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => window.open('https://airtable.com/appbKYczBetBCdJKs', '_blank')}
+                >
+                  Open Airtable
                 </Button>
               </CardContent>
             </Card>

@@ -6,5 +6,6 @@ dist/
 apply-*.ts
 test-*.ts
 trigger-*.ts
-/supabase/
+/supabase/.temp
+/supabase/config.toml
 bun.lockb

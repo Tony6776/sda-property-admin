@@ -37,6 +37,11 @@ interface Property {
   bathrooms: number | null;
   sda_category: string | null;
   created_at: string;
+  image_url: string | null;
+  images: any;
+  accessibility: {
+    images?: string[];
+  } | null;
 }
 
 export function PropertyList() {
@@ -52,7 +57,7 @@ export function PropertyList() {
       // Use service role via RPC to get all properties (admin view)
       const { data, error } = await supabase
         .from('properties')
-        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at')
+        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, image_url, images, accessibility')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -148,6 +153,7 @@ export function PropertyList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Image</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead>Type</TableHead>
@@ -160,6 +166,26 @@ export function PropertyList() {
                 <TableBody>
                   {properties.map((property) => (
                     <TableRow key={property.id}>
+                      <TableCell>
+                        {(() => {
+                          const imageUrl = property.image_url ||
+                            (property.accessibility?.images && property.accessibility.images.length > 0
+                              ? property.accessibility.images[0]
+                              : null);
+
+                          return imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={property.name}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                              No image
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="font-medium">{property.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {property.address}
@@ -187,7 +213,8 @@ export function PropertyList() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            disabled
+                            onClick={() => navigate(`/admin/properties/edit/${property.id}`)}
+                            title="Edit property"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -195,6 +222,7 @@ export function PropertyList() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteId(property.id)}
+                            title="Delete property"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
