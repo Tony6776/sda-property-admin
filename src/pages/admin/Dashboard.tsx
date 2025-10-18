@@ -7,6 +7,7 @@ import { LogOut, LayoutDashboard, Home } from "lucide-react";
 import { checkAdminAuth, signOutAdmin, AdminProfile } from "@/lib/adminAuthUtils";
 import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function AdminDashboard() {
@@ -16,7 +17,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ total: 0, available: 0 });
 
   useEffect(() => {
-    // Verify admin access
+    // Verify admin access - runs once on mount
     checkAdminAuth().then(({ isAdmin, profile }) => {
       if (!isAdmin) {
         navigate('/admin/login');
@@ -26,12 +27,11 @@ export default function AdminDashboard() {
       }
       setLoading(false);
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const fetchStats = async () => {
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-
       // Get total properties
       const { count: total } = await supabase
         .from('properties')
