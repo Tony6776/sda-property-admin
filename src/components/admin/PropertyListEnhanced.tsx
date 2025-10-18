@@ -45,8 +45,6 @@ interface Property {
   sda_category: string | null;
   created_at: string;
   updated_at: string;
-  image_url: string | null;
-  images: any;
   accessibility: {
     images?: string[];
     airtable_id?: string;
@@ -74,7 +72,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, image_url, images, accessibility')
+        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, accessibility')
         .order('updated_at', { ascending: false });
 
       console.log('[PropertyListEnhanced] Query result:', {
@@ -318,10 +316,9 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
                 </TableHeader>
                 <TableBody>
                   {filteredProperties.map((property) => {
-                    const imageUrl = property.image_url ||
-                      (property.accessibility?.images && property.accessibility.images.length > 0
-                        ? property.accessibility.images[0]
-                        : null);
+                    const imageUrl = property.accessibility?.images && property.accessibility.images.length > 0
+                      ? property.accessibility.images[0]
+                      : null;
 
                     return (
                       <TableRow key={property.id}>
