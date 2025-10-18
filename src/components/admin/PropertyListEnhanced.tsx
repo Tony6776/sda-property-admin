@@ -51,7 +51,6 @@ interface Property {
     images?: string[];
     airtable_id?: string;
   } | null;
-  matching_status: string | null;
 }
 
 interface PropertyListEnhancedProps {
@@ -65,6 +64,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -74,7 +74,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, image_url, images, accessibility, matching_status')
+        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, image_url, images, accessibility')
         .order('updated_at', { ascending: false });
 
       console.log('[PropertyListEnhanced] Query result:', {
@@ -143,6 +143,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
   };
 
   const handleStatusChange = async (propertyId: string, newStatus: string) => {
+    setUpdatingStatus(propertyId);
     try {
       const { error } = await supabase
         .from('properties')
@@ -156,17 +157,21 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
       onRefresh?.();
     } catch (error: any) {
       toast.error(`Failed to update: ${error.message}`);
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
   const handleBulkApprove = async () => {
     try {
+      // Only approve properties with statuses that make sense to approve
+      const approvableStatuses = ['hold', 'application review ', 'lead_new'];
       const pendingIds = filteredProperties
-        .filter(p => p.status !== 'available')
+        .filter(p => p.status !== 'available' && p.status !== 'sold' && p.status !== 'leased')
         .map(p => p.id);
 
       if (pendingIds.length === 0) {
-        toast.info("No properties to approve");
+        toast.info("No properties to approve (excluding sold/leased)");
         return;
       }
 
@@ -186,15 +191,17 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      available: { variant: "default" as const, label: "Live", icon: Check },
-      pending: { variant: "secondary" as const, label: "Pending", icon: Eye },
-      sold: { variant: "outline" as const, label: "Sold", icon: X },
-      leased: { variant: "outline" as const, label: "Leased", icon: X },
-      draft: { variant: "secondary" as const, label: "Draft", icon: EyeOff },
+    const statusConfig: Record<string, { variant: "default" | "secondary" | "outline" | "destructive", label: string, icon: any }> = {
+      available: { variant: "default", label: "Live", icon: Check },
+      sold: { variant: "outline", label: "Sold", icon: X },
+      leased: { variant: "outline", label: "Leased", icon: X },
+      hold: { variant: "secondary", label: "On Hold", icon: Eye },
+      participant_active: { variant: "secondary", label: "Participant", icon: Eye },
+      lead_new: { variant: "secondary", label: "New Lead", icon: Eye },
+      "application review ": { variant: "secondary", label: "Review", icon: Eye },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    const config = statusConfig[status] || { variant: "secondary" as const, label: status || "Unknown", icon: EyeOff };
     const Icon = config.icon;
 
     return (
@@ -241,7 +248,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
               </Button>
               <Button variant="outline" size="sm" onClick={handleBulkApprove}>
                 <Check className="h-4 w-4 mr-2" />
-                Approve All
+                Approve Filtered
               </Button>
               <Button size="sm" onClick={() => navigate('/admin/properties/new')}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -260,8 +267,10 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="available">Live</SelectItem>
-                  <SelectItem value="pending">Pending Review</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="hold">On Hold</SelectItem>
+                  <SelectItem value="application review ">Under Review</SelectItem>
+                  <SelectItem value="lead_new">New Leads</SelectItem>
+                  <SelectItem value="participant_active">Participant</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
                   <SelectItem value="leased">Leased</SelectItem>
                 </SelectContent>
@@ -334,26 +343,41 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
                           <div className="text-sm text-muted-foreground">{property.address}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={property.property_type === 'sale' ? 'default' : 'secondary'}>
-                            {property.property_type === 'sale' ? 'For Sale' : 'For Lease'}
+                          <Badge variant={property.property_type === 'sale' ? 'default' : property.property_type === 'lease' ? 'secondary' : 'outline'}>
+                            {property.property_type === 'sale' ? 'For Sale' :
+                             property.property_type === 'lease' ? 'For Lease' :
+                             property.property_type === 'apartment' ? 'Apartment' :
+                             property.property_type === 'participant_sda' ? 'Participant SDA' :
+                             property.property_type === 'lead_enquiry' ? 'Lead' :
+                             property.property_type || 'Unknown'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Select
                             value={property.status}
                             onValueChange={(value) => handleStatusChange(property.id, value)}
+                            disabled={updatingStatus === property.id}
                           >
-                            <SelectTrigger className="w-[130px]">
+                            <SelectTrigger className="w-[140px]">
                               <SelectValue>
-                                {getStatusBadge(property.status)}
+                                {updatingStatus === property.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                    <span className="text-xs">Updating...</span>
+                                  </div>
+                                ) : (
+                                  getStatusBadge(property.status)
+                                )}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="available">Live</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="sold">Sold</SelectItem>
-                              <SelectItem value="leased">Leased</SelectItem>
+                              <SelectItem value="available">✅ Live</SelectItem>
+                              <SelectItem value="hold">⏸️ On Hold</SelectItem>
+                              <SelectItem value="application review ">👀 Review</SelectItem>
+                              <SelectItem value="lead_new">📧 New Lead</SelectItem>
+                              <SelectItem value="participant_active">👤 Participant</SelectItem>
+                              <SelectItem value="sold">💰 Sold</SelectItem>
+                              <SelectItem value="leased">🏠 Leased</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
