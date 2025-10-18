@@ -53,6 +53,7 @@ export function PropertyList() {
 
   const fetchProperties = async () => {
     setLoading(true);
+    console.log('[PropertyList] Starting fetchProperties...');
     try {
       // Use service role via RPC to get all properties (admin view)
       const { data, error } = await supabase
@@ -60,14 +61,17 @@ export function PropertyList() {
         .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, image_url, images, accessibility')
         .order('created_at', { ascending: false });
 
+      console.log('[PropertyList] Query result:', { dataLength: data?.length, error });
+
       if (error) {
-        console.error('Error fetching properties:', error);
+        console.error('[PropertyList] Error fetching properties:', error);
         toast.error("Failed to load properties");
       } else {
+        console.log('[PropertyList] Setting properties:', data?.length || 0, 'items');
         setProperties(data || []);
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('[PropertyList] Unexpected error:', err);
       toast.error("Failed to load properties");
     } finally {
       setLoading(false);

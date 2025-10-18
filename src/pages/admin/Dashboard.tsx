@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { LogOut, LayoutDashboard, Home } from "lucide-react";
 import { checkAdminAuth, signOutAdmin, AdminProfile } from "@/lib/adminAuthUtils";
-import { PropertyList } from "@/components/admin/PropertyList";
+import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
 import { toast } from "sonner";
 
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Property Management - Takes up 2 columns */}
           <div className="lg:col-span-2">
-            <PropertyList />
+            <PropertyListEnhanced onRefresh={fetchStats} />
           </div>
 
           {/* Sidebar - Takes up 1 column */}
