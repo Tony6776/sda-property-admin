@@ -34,6 +34,35 @@ export function SetupVerification() {
     runChecks();
   }, []);
 
+  const createStorageBucket = async () => {
+    setChecking(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/setup-storage`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Re-run checks after successful creation
+        await runChecks();
+      } else {
+        alert(`Failed to create storage bucket: ${result.error}`);
+        setChecking(false);
+      }
+    } catch (error: any) {
+      alert(`Failed to create storage bucket: ${error.message}`);
+      setChecking(false);
+    }
+  };
+
   const runChecks = async () => {
     setChecking(true);
     const results: SetupCheck[] = [];
@@ -78,22 +107,29 @@ export function SetupVerification() {
       });
     }
 
-    // Check 2: Storage bucket exists
+    // Check 2: Storage bucket exists (by trying to upload)
     try {
-      const { data: buckets, error: bucketsError } = await supabase
-        .storage
-        .listBuckets();
+      // Try to upload a test file to check if bucket exists
+      const testFile = new Blob(['test'], { type: 'text/plain' });
+      const testPath = `test/${Date.now()}.txt`;
 
-      if (bucketsError) {
-        results.push({
-          name: 'Storage Bucket',
-          status: 'warning',
-          message: `Failed to check storage: ${bucketsError.message}`,
-        });
-      } else {
-        const documentsBucket = buckets?.find(b => b.name === 'documents');
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(testPath, testFile);
 
-        if (documentsBucket) {
+      if (uploadError) {
+        if (uploadError.message?.includes('not found') || uploadError.message?.includes('does not exist')) {
+          results.push({
+            name: 'Storage Bucket',
+            status: 'error',
+            message: 'Storage bucket "documents" does not exist. File uploads will fail.',
+            action: {
+              label: 'Create Storage Bucket',
+              onClick: createStorageBucket
+            }
+          });
+        } else if (uploadError.message?.includes('mime type')) {
+          // Bucket exists but MIME type not allowed - still counts as existing
           results.push({
             name: 'Storage Bucket',
             status: 'success',
@@ -102,20 +138,31 @@ export function SetupVerification() {
         } else {
           results.push({
             name: 'Storage Bucket',
-            status: 'error',
-            message: 'Storage bucket "documents" does not exist. File uploads will fail.',
-            action: {
-              label: 'Create Storage Bucket',
-              url: 'https://supabase.com/dashboard/project/bqvptfdxnrzculgjcnjo/storage/buckets'
-            }
+            status: 'warning',
+            message: `Storage check inconclusive: ${uploadError.message}`,
           });
         }
+      } else {
+        // Clean up test file
+        await supabase.storage
+          .from('documents')
+          .remove([testPath]);
+
+        results.push({
+          name: 'Storage Bucket',
+          status: 'success',
+          message: 'Storage bucket "documents" exists',
+        });
       }
     } catch (error: any) {
       results.push({
         name: 'Storage Bucket',
         status: 'error',
         message: `Failed to check storage: ${error.message}`,
+        action: {
+          label: 'Create Storage Bucket',
+          onClick: createStorageBucket
+        }
       });
     }
 
