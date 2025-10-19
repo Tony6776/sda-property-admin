@@ -77,6 +77,24 @@ export function SmartFileUpload({
   };
 
   // Simulate AI file categorization (replace with real AI later)
+  // Sanitize filename for storage (remove special characters)
+  const sanitizeFilename = (filename: string): string => {
+    // Get file extension
+    const lastDotIndex = filename.lastIndexOf('.');
+    const name = lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
+    const ext = lastDotIndex !== -1 ? filename.substring(lastDotIndex) : '';
+
+    // Remove or replace special characters
+    const sanitized = name
+      .replace(/\s+/g, '_')           // Replace spaces with underscores
+      .replace(/[[\](){}]/g, '')      // Remove brackets and parentheses
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace other special chars with underscores
+      .replace(/_+/g, '_')            // Replace multiple underscores with single
+      .replace(/^_|_$/g, '');         // Remove leading/trailing underscores
+
+    return sanitized + ext;
+  };
+
   const categorizeFile = (filename: string, fileType: string): { category: string; confidence: number; extractedData?: any } => {
     const lowerName = filename.toLowerCase();
 
@@ -198,8 +216,8 @@ export function SmartFileUpload({
         const aiResult = categorizeFile(uploadFile.file.name, uploadFile.file.type);
 
         // Upload to Supabase Storage
-        const fileExt = uploadFile.file.name.split('.').pop();
-        const fileName = `${Date.now()}_${uploadFile.file.name}`;
+        const sanitizedName = sanitizeFilename(uploadFile.file.name);
+        const fileName = `${Date.now()}_${sanitizedName}`;
         const storagePath = `${entityType || 'general'}/${entityId || 'uncategorized'}/${aiResult.category}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
