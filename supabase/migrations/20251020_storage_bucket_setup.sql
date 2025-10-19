@@ -10,11 +10,16 @@ VALUES (
     'image/png',
     'image/gif',
     'image/webp',
+    'image/svg+xml',
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'text/csv',
+    'application/zip',
+    'application/x-zip-compressed'
   ]
 )
 ON CONFLICT (id) DO UPDATE
@@ -26,11 +31,16 @@ SET
     'image/png',
     'image/gif',
     'image/webp',
+    'image/svg+xml',
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'text/csv',
+    'application/zip',
+    'application/x-zip-compressed'
   ];
 
 -- Drop existing policies if they exist
