@@ -25,8 +25,8 @@ interface JobFormData {
   expected_roi: number;
   status: string;
   progress_percentage: number;
-  start_date?: string;
-  completion_date?: string;
+  estimated_start_date?: string;
+  estimated_completion_date?: string;
   organization_id: string;
 }
 
@@ -78,8 +78,8 @@ export default function JobForm() {
           expected_roi: data.expected_roi || 0,
           status: data.status || "planning",
           progress_percentage: data.progress_percentage || 0,
-          start_date: data.start_date || "",
-          completion_date: data.completion_date || "",
+          estimated_start_date: data.estimated_start_date || "",
+          estimated_completion_date: data.estimated_completion_date || "",
           organization_id: data.organization_id || "plcg",
         });
       }
@@ -276,22 +276,22 @@ export default function JobForm() {
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="start_date">Start Date</Label>
+                    <Label htmlFor="estimated_start_date">Start Date</Label>
                     <Input
-                      id="start_date"
+                      id="estimated_start_date"
                       type="date"
-                      value={formData.start_date}
-                      onChange={(e) => handleChange('start_date', e.target.value)}
+                      value={formData.estimated_start_date}
+                      onChange={(e) => handleChange('estimated_start_date', e.target.value)}
                     />
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="completion_date">Completion Date</Label>
+                    <Label htmlFor="estimated_completion_date">Completion Date</Label>
                     <Input
-                      id="completion_date"
+                      id="estimated_completion_date"
                       type="date"
-                      value={formData.completion_date}
-                      onChange={(e) => handleChange('completion_date', e.target.value)}
+                      value={formData.estimated_completion_date}
+                      onChange={(e) => handleChange('estimated_completion_date', e.target.value)}
                     />
                   </div>
                 </div>
