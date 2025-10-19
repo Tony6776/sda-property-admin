@@ -527,10 +527,17 @@ async function configureWebhooksForAllForms(apiKey: string, webhookUrl: string) 
 
       if (webhooksResponse.ok) {
         const webhooksData = await webhooksResponse.json()
-        const existingWebhooks = webhooksData.content || []
+        let existingWebhooks = webhooksData.content || {}
+
+        // Handle both object and array formats
+        if (!Array.isArray(existingWebhooks)) {
+          existingWebhooks = Object.values(existingWebhooks)
+        }
 
         // Check if webhook already exists
-        const webhookExists = existingWebhooks.some((w: string) => w.includes('jotform-extractor'))
+        const webhookExists = existingWebhooks.some((w: string) =>
+          typeof w === 'string' && w.includes('jotform-extractor')
+        )
 
         if (webhookExists) {
           console.log(`✅ Webhook already exists for form ${form.id}`)
