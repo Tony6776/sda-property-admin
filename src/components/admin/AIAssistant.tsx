@@ -56,12 +56,23 @@ export function AIAssistant() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        // Handle table not existing gracefully
+        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          console.log('AI recommendations table not yet created - apply migration');
+          setRecommendations([]);
+          return;
+        }
+        throw error;
+      }
 
       setRecommendations(data || []);
     } catch (error: any) {
       console.error('Error loading recommendations:', error);
-      toast.error('Failed to load AI recommendations');
+      // Don't show error toast if table doesn't exist yet
+      if (!error.message?.includes('relation')) {
+        toast.error('Failed to load AI recommendations');
+      }
     } finally {
       setLoading(false);
     }
