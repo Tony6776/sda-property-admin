@@ -307,48 +307,45 @@ function extractParticipantData(answers: Record<string, any>) {
 
 // Find participant in Supabase
 async function findParticipant(supabase: any, data: { name: string; email: string; ndisNumber: string }) {
+  console.log(`🔍 Looking for participant: name="${data.name}", ndis="${data.ndisNumber}"`)
+
   // Try NDIS number first (most accurate)
   if (data.ndisNumber) {
-    const { data: participants } = await supabase
+    const { data: participants, error } = await supabase
       .from('participants')
       .select('*')
       .eq('ndis_number', data.ndisNumber)
       .limit(1)
 
+    if (error) {
+      console.error('Error querying by NDIS number:', error)
+    }
+
     if (participants?.length > 0) {
-      console.log('✅ Matched by NDIS number')
+      console.log(`✅ Matched by NDIS number: ${participants[0].name} (${participants[0].id})`)
       return participants[0]
     }
   }
 
-  // Try email
-  if (data.email) {
-    const { data: participants } = await supabase
-      .from('participants')
-      .select('*')
-      .ilike('email', data.email)
-      .limit(1)
-
-    if (participants?.length > 0) {
-      console.log('✅ Matched by email')
-      return participants[0]
-    }
-  }
-
-  // Try fuzzy name match
+  // Try fuzzy name match (participants table has no email column)
   if (data.name) {
-    const { data: participants } = await supabase
+    const { data: participants, error } = await supabase
       .from('participants')
       .select('*')
       .ilike('name', `%${data.name}%`)
       .limit(1)
 
+    if (error) {
+      console.error('Error querying by name:', error)
+    }
+
     if (participants?.length > 0) {
-      console.log('✅ Matched by name (fuzzy)')
+      console.log(`✅ Matched by name (fuzzy): ${participants[0].name} (${participants[0].id})`)
       return participants[0]
     }
   }
 
+  console.log(`⚠️ No participant match found`)
   return null
 }
 
