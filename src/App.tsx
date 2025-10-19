@@ -36,6 +36,24 @@ const PropertyNew = lazy(() => import("./pages/admin/PropertyNew"));
 const PropertyEdit = lazy(() => import("./pages/admin/PropertyEdit"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 
+// Admin: Participants
+const ParticipantList = lazy(() => import("./pages/admin/participants/ParticipantList"));
+const AdminParticipantProfile = lazy(() => import("./pages/admin/participants/ParticipantProfile"));
+
+// Admin: Landlords
+const LandlordList = lazy(() => import("./pages/admin/landlords/LandlordList"));
+const LandlordForm = lazy(() => import("./pages/admin/landlords/LandlordForm"));
+const LandlordProfile = lazy(() => import("./pages/admin/landlords/LandlordProfile"));
+
+// Admin: Jobs
+const JobList = lazy(() => import("./pages/admin/jobs/JobList"));
+const JobForm = lazy(() => import("./pages/admin/jobs/JobForm"));
+const JobDetail = lazy(() => import("./pages/admin/jobs/JobDetail"));
+
+// Admin: Investors
+const InvestorList = lazy(() => import("./pages/admin/investors/InvestorList"));
+const InvestorForm = lazy(() => import("./pages/admin/investors/InvestorForm"));
+
 // Participant routes
 const ParticipantSignup = lazy(() => import("./pages/participant/Signup"));
 const ParticipantLogin = lazy(() => import("./pages/participant/Login"));
@@ -94,6 +112,79 @@ const App = () => (
             <Route path="/admin/users" element={
               <ProtectedRoute>
                 <AdminUsers />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: Participant Management */}
+            <Route path="/admin/participants" element={
+              <ProtectedRoute>
+                <ParticipantList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/participants/:id" element={
+              <ProtectedRoute>
+                <AdminParticipantProfile />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: Landlord Management */}
+            <Route path="/admin/landlords" element={
+              <ProtectedRoute>
+                <LandlordList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/landlords/new" element={
+              <ProtectedRoute>
+                <LandlordForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/landlords/:id" element={
+              <ProtectedRoute>
+                <LandlordProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/landlords/:id/edit" element={
+              <ProtectedRoute>
+                <LandlordForm />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: Job Management */}
+            <Route path="/admin/jobs" element={
+              <ProtectedRoute>
+                <JobList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/jobs/new" element={
+              <ProtectedRoute>
+                <JobForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/jobs/:id" element={
+              <ProtectedRoute>
+                <JobDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/jobs/:id/edit" element={
+              <ProtectedRoute>
+                <JobForm />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: Investor Management */}
+            <Route path="/admin/investors" element={
+              <ProtectedRoute>
+                <InvestorList />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/investors/new" element={
+              <ProtectedRoute>
+                <InvestorForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/investors/:id/edit" element={
+              <ProtectedRoute>
+                <InvestorForm />
               </ProtectedRoute>
             } />
 

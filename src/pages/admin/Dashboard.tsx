@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, LayoutDashboard, Home } from "lucide-react";
+import { LogOut, LayoutDashboard, Home, Users, Building2, Briefcase, TrendingUp } from "lucide-react";
 import { checkAdminAuth, signOutAdmin, AdminProfile } from "@/lib/adminAuthUtils";
 import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
+import { AIAssistant } from "@/components/admin/AIAssistant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -146,47 +147,65 @@ export default function AdminDashboard() {
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Property Management - Takes up 2 columns */}
-          <div className="lg:col-span-2">
+          {/* Left Column - Property Management */}
+          <div className="lg:col-span-2 space-y-6">
             <PropertyListEnhanced onRefresh={fetchStats} />
           </div>
 
-          {/* Sidebar - Takes up 1 column */}
+          {/* Right Sidebar - AI Assistant & Tools */}
           <div className="space-y-6">
+            {/* AI Assistant */}
+            <AIAssistant />
+
+            {/* Airtable Sync */}
             <AirtableSync onSyncComplete={fetchStats} />
 
+            {/* Quick Links */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Links</CardTitle>
+                <CardTitle>Management</CardTitle>
+                <CardDescription>Access admin functions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => navigate('/admin/properties/new')}
+                  onClick={() => navigate('/admin/participants')}
                 >
-                  Add New Property
+                  <Users className="mr-2 h-4 w-4" />
+                  Participants
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/landlords')}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Landlords
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/jobs')}
+                >
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  PLCG Jobs
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/investors')}
+                >
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Investors
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start"
                   onClick={() => navigate('/admin/users')}
                 >
-                  Manage Admin Users
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => navigate('/')}
-                >
-                  View Public Site
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => window.open('https://airtable.com/appbKYczBetBCdJKs', '_blank')}
-                >
-                  Open Airtable
+                  <Users className="mr-2 h-4 w-4" />
+                  Admin Users
                 </Button>
               </CardContent>
             </Card>
