@@ -1,0 +1,77 @@
+name: Fix RLS Policies for Jobs Table
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "FIX" to confirm'
+        required: true
+        default: ''
+
+jobs:
+  fix-rls:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'FIX'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup PostgreSQL Client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+
+    - name: Apply RLS Fix SQL
+      env:
+        PGHOST: aws-0-ap-southeast-2.pooler.supabase.com
+        PGPORT: 6543
+        PGDATABASE: postgres
+        PGUSER: postgres.bqvptfdxnrzculgjcnjo
+        PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      run: |
+        echo "Applying RLS policy fix..."
+        psql << 'EOF'
+        -- Drop existing restrictive policies
+        DROP POLICY IF EXISTS "Admin users can view jobs in their organization" ON jobs;
+        DROP POLICY IF EXISTS "Admin users can insert jobs in their organization" ON jobs;
+        DROP POLICY IF EXISTS "Admin users can update jobs in their organization" ON jobs;
+
+        -- Create simpler policies for authenticated users
+        CREATE POLICY "Authenticated users can view all jobs"
+          ON jobs FOR SELECT
+          USING (auth.role() = 'authenticated');
+
+        CREATE POLICY "Authenticated users can insert jobs"
+          ON jobs FOR INSERT
+          WITH CHECK (
+            auth.role() = 'authenticated'
+            AND organization_id = 'plcg'
+          );
+
+        CREATE POLICY "Authenticated users can update jobs"
+          ON jobs FOR UPDATE
+          USING (
+            auth.role() = 'authenticated'
+            AND organization_id = 'plcg'
+          );
+
+        CREATE POLICY "Authenticated users can delete jobs"
+          ON jobs FOR DELETE
+          USING (
+            auth.role() = 'authenticated'
+            AND organization_id = 'plcg'
+          );
+
+        SELECT 'RLS policies fixed successfully!' AS status;
+        EOF
+
+    - name: Verify Fix
+      env:
+        PGHOST: aws-0-ap-southeast-2.pooler.supabase.com
+        PGPORT: 6543
+        PGDATABASE: postgres
+        PGUSER: postgres.bqvptfdxnrzculgjcnjo
+        PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      run: |
+        echo "Verifying RLS policies..."
+        psql -c "SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'jobs';"
