@@ -26,7 +26,7 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SmartFileUpload } from "@/components/admin/SmartFileUpload";
+import { DocumentTabs } from "@/components/admin/DocumentTabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Landlord {
@@ -425,21 +425,11 @@ export default function LandlordProfile() {
           </Card>
 
           {/* Documents */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-              <CardDescription>
-                Upload contracts, compliance certificates, and other documents
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SmartFileUpload
-                entityType="landlord"
-                entityId={id}
-                acceptedFileTypes="image/*,application/pdf,.doc,.docx"
-              />
-            </CardContent>
-          </Card>
+          <DocumentTabs
+            entityType="landlord"
+            entityId={id!}
+            entityName={landlord.full_name}
+          />
 
           {/* Notes */}
           {landlord.notes && (

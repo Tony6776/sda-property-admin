@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { DocumentTabs } from "@/components/admin/DocumentTabs";
 import {
   ArrowLeft,
   Mail,
@@ -438,21 +439,11 @@ export default function ParticipantProfile() {
 
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Document Verification</CardTitle>
-                <CardDescription>Review and verify participant documents</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">Document management coming soon</p>
-                  <p className="text-sm text-muted-foreground">
-                    This section will allow you to view, approve, and reject participant documents
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <DocumentTabs
+              entityType="participant"
+              entityId={id!}
+              entityName={participant.name}
+            />
           </TabsContent>
 
           {/* Activity Tab */}

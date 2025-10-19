@@ -15,6 +15,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Edit, DollarSign, TrendingUp, Users, Send, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { DocumentTabs } from "@/components/admin/DocumentTabs";
 
 interface Job {
   id: string;
@@ -492,6 +493,13 @@ export default function JobDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Documents */}
+          <DocumentTabs
+            entityType="job"
+            entityId={id!}
+            entityName={job?.job_name}
+          />
         </div>
       </main>
     </div>
