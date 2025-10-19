@@ -33,6 +33,7 @@ const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const PropertyNew = lazy(() => import("./pages/admin/PropertyNew"));
 const PropertyEdit = lazy(() => import("./pages/admin/PropertyEdit"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,11 @@ const App = () => (
             <Route path="/admin/properties/edit/:id" element={
               <ProtectedRoute>
                 <PropertyEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute>
+                <AdminUsers />
               </ProtectedRoute>
             } />
 

@@ -170,6 +170,13 @@ export default function AdminDashboard() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
+                  onClick={() => navigate('/admin/users')}
+                >
+                  Manage Admin Users
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
                   onClick={() => navigate('/')}
                 >
                   View Public Site
@@ -207,16 +214,20 @@ export default function AdminDashboard() {
                 <span className="text-sm">Admin dashboard created with property list & Airtable sync</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">⏳ Phase 4</Badge>
-                <span className="text-sm">Property management (add/edit forms - next)</span>
+                <Badge>✅ Phase 4</Badge>
+                <span className="text-sm">Property management with multi-tenant support (create/edit forms)</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">Phase 5</Badge>
-                <span className="text-sm">Backend security with RLS</span>
+                <Badge>✅ Phase 5</Badge>
+                <span className="text-sm">Backend security with RLS (organizations, policies, audit log)</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">Phase 6</Badge>
-                <span className="text-sm">Admin user creation and testing</span>
+                <Badge>✅ Phase 6</Badge>
+                <span className="text-sm">Admin user management system (complete ecosystem)</span>
+              </div>
+              <div className="flex items-center gap-2 pt-2 border-t mt-2">
+                <Badge variant="default">🎉 Complete</Badge>
+                <span className="text-sm font-medium">SDA Property Admin Ecosystem - Production Ready</span>
               </div>
             </div>
           </CardContent>
