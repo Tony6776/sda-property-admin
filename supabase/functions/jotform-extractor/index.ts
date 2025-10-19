@@ -254,15 +254,6 @@ function extractParticipantData(answers: Record<string, any>) {
   let email = ''
   let ndisNumber = ''
 
-  // Debug: Log all fields
-  console.log('🔍 Extracting participant data from fields:')
-  for (const [key, value] of Object.entries(answers)) {
-    const answer = value as any
-    if (answer?.type && answer?.text && answer?.answer) {
-      console.log(`  Field ${key}: type="${answer.type}", name="${answer.name}", text="${answer.text}", answer="${typeof answer.answer === 'object' ? JSON.stringify(answer.answer) : answer.answer}"`)
-    }
-  }
-
   for (const [key, value] of Object.entries(answers)) {
     const answer = value as any
     const fieldText = (answer?.text || '').toLowerCase()
@@ -272,22 +263,20 @@ function extractParticipantData(answers: Record<string, any>) {
     // Skip non-participant fields
     if (!fieldText && !fieldName) continue
 
-    // Extract NDIS Number - look for specific text
+    // Extract NDIS Number - check TEXT field for specific wording
     if (
-      (fieldText.includes('ndis') && fieldText.includes('number')) ||
-      fieldName === 'ndisNumber' ||
-      fieldName.includes('ndisnumber')
+      (fieldText.includes('ndis') && fieldText.includes('participant') && fieldText.includes('number')) ||
+      (fieldText === "ndis participant's ndis number")
     ) {
       ndisNumber = String(fieldValue || '').trim()
+      console.log(`✅ Found NDIS Number in field "${fieldText}": ${ndisNumber}`)
       continue
     }
 
-    // Extract participant name - handle both string and object formats
+    // Extract participant name - check TEXT field, not field name
     if (
-      (fieldText.includes('participant') && fieldText.includes('name')) ||
-      (fieldText.includes('participant') && fieldText.includes('full name')) ||
-      fieldName === 'participantName' ||
-      fieldName.includes('ndisparticipants') && !fieldName.includes('email') && !fieldName.includes('phone')
+      (fieldText.includes('participant') && (fieldText.includes('full name') || fieldText.includes('name')) && !fieldText.includes('plan manager') && !fieldText.includes('support coordinator')) ||
+      (fieldText === "ndis participant's full name")
     ) {
       if (typeof fieldValue === 'object' && fieldValue !== null) {
         // Handle fullname field format: {first: "Jessica", last: "Teasdale"}
@@ -297,20 +286,22 @@ function extractParticipantData(answers: Record<string, any>) {
       } else {
         name = String(fieldValue || '').trim()
       }
+      console.log(`✅ Found Participant Name in field "${fieldText}": ${name}`)
       continue
     }
 
-    // Extract participant email
+    // Extract participant email - check TEXT field
     if (
-      (fieldText.includes('participant') && fieldText.includes('email')) ||
-      fieldName === 'participantEmail' ||
-      (fieldName.includes('ndisparticipants') && fieldName.includes('email'))
+      (fieldText.includes('participant') && fieldText.includes('email') && !fieldText.includes('plan manager') && !fieldText.includes('support coordinator')) ||
+      (fieldText === "ndis participant's email address")
     ) {
       email = String(fieldValue || '').trim()
+      console.log(`✅ Found Participant Email in field "${fieldText}": ${email}`)
       continue
     }
   }
 
+  console.log(`📊 Extracted: name="${name}", email="${email}", ndisNumber="${ndisNumber}"`)
   return { name, email, ndisNumber }
 }
 
@@ -666,9 +657,11 @@ async function processHistoricalSubmissions(apiKey: string) {
     '251711198894063', // NDIS Support Plan Template
     '250589077972876', // SDA Landlord Enrolment Documents
     '242242586980059', // SDA Property Docs
+    '241191409987870', // NDIS SDA Service Agreement S1 (13 submissions)
     '241030962693860', // LTC Property Response Form
+    '240977592477878', // NDIS Service Agreement (10 submissions)
     '232252012714846', // WBL Sale Request
-    '231298175953870'  // SDA Property Request Form
+    '231298175953870'  // SDA Property Request Form (54 submissions - PARTICIPANT FORM)
   ]
 
   const results = {
