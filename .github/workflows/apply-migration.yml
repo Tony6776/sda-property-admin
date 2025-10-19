@@ -1,0 +1,46 @@
+name: Apply Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "APPLY" to confirm migration'
+        required: true
+        default: ''
+
+jobs:
+  apply-migration:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'APPLY'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
+    - name: Link Supabase Project
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      run: |
+        echo "Linking to Supabase project..."
+        supabase link --project-ref bqvptfdxnrzculgjcnjo
+
+    - name: Apply AI Workflows Migration
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      run: |
+        echo "Applying migration: 20251019_ai_workflows.sql"
+        supabase db push --include-all
+
+    - name: Create Storage Bucket
+      env:
+        SUPABASE_URL: https://bqvptfdxnrzculgjcnjo.supabase.co
+        SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxdnB0ZmR4bnJ6Y3VsZ2pjbmpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMjY5NDAsImV4cCI6MjA2OTgwMjk0MH0.I10e1TQkVntpEm3KSXmydNJQLbhJQ3MU4SyMt1lOvOk
+      run: |
+        echo "✅ Migration applied successfully!"
+        echo ""
+        echo "Next step: Create storage bucket 'documents' manually in Supabase Dashboard"
+        echo "https://supabase.com/dashboard/project/bqvptfdxnrzculgjcnjo/storage/buckets"
