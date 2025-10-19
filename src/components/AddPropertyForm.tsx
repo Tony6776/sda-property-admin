@@ -189,6 +189,8 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
         property_manager: formData.property_manager || undefined,
         description: formData.description || undefined,
         features: formData.features,
+        primary_image: imageUrls[0] || undefined,
+        images: imageUrls,
         accessibility: { images: imageUrls },
         // Multi-tenant fields
         organization_id: formData.organization_id,

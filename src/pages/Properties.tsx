@@ -144,6 +144,9 @@ interface Property {
   features: string[];
   status: string;
   property_type: string;
+  description?: string | null;
+  primary_image?: string | null;
+  images?: string[] | null;
   accessibility: any;
 }
 
@@ -200,9 +203,12 @@ const Properties = () => {
           features: prop.features || [],
           status: prop.status || 'Available',
           property_type: prop.property_type || propertyType,
+          description: prop.description || null,
+          primary_image: prop.primary_image || null,
+          images: prop.images || null,
           accessibility: prop.accessibility || {
-            images: [stepFreeLiving],
-            description: 'Property details available upon request'
+            images: prop.images || [stepFreeLiving],
+            description: prop.description || 'Property details available upon request'
           }
         }));
 
@@ -271,7 +277,7 @@ const Properties = () => {
     "makesOffer": properties.map(property => ({
       "@type": "Accommodation",
       "name": property.name,
-      "description": property.accessibility?.description || property.name,
+      "description": property.description || property.accessibility?.description || property.name,
       "address": {
         "@type": "PostalAddress",
         "addressLocality": property.address
@@ -406,7 +412,9 @@ const Properties = () => {
                     <div className="relative overflow-hidden rounded-t-lg">
                       <img
                         src={
-                          (property.accessibility as any)?.images?.[0] || 
+                          property.primary_image ||
+                          property.images?.[0] ||
+                          (property.accessibility as any)?.images?.[0] ||
                           getDefaultImage(index)
                         }
                         alt={`${property.name} - Step-free accessible interior`}
@@ -448,7 +456,7 @@ const Properties = () => {
 
                     <CardContent className="space-y-4">
                       <ExpandableDescription
-                        text={property.accessibility?.description || property.name}
+                        text={property.description || property.accessibility?.description || property.name}
                         maxLength={120}
                         className="text-sm text-muted-foreground"
                       />
