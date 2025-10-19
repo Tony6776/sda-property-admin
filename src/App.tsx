@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedParticipantRoute } from "@/components/ProtectedParticipantRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load route components to reduce initial bundle size
@@ -34,6 +35,14 @@ const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const PropertyNew = lazy(() => import("./pages/admin/PropertyNew"));
 const PropertyEdit = lazy(() => import("./pages/admin/PropertyEdit"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+
+// Participant routes
+const ParticipantSignup = lazy(() => import("./pages/participant/Signup"));
+const ParticipantLogin = lazy(() => import("./pages/participant/Login"));
+const ParticipantDashboard = lazy(() => import("./pages/participant/Dashboard"));
+const ParticipantMatches = lazy(() => import("./pages/participant/Matches"));
+const ParticipantProfile = lazy(() => import("./pages/participant/Profile"));
+const ParticipantDocuments = lazy(() => import("./pages/participant/Documents"));
 
 const queryClient = new QueryClient();
 
@@ -86,6 +95,30 @@ const App = () => (
               <ProtectedRoute>
                 <AdminUsers />
               </ProtectedRoute>
+            } />
+
+            {/* Participant routes */}
+            <Route path="/participant/signup" element={<ParticipantSignup />} />
+            <Route path="/participant/login" element={<ParticipantLogin />} />
+            <Route path="/participant/dashboard" element={
+              <ProtectedParticipantRoute>
+                <ParticipantDashboard />
+              </ProtectedParticipantRoute>
+            } />
+            <Route path="/participant/matches" element={
+              <ProtectedParticipantRoute>
+                <ParticipantMatches />
+              </ProtectedParticipantRoute>
+            } />
+            <Route path="/participant/profile" element={
+              <ProtectedParticipantRoute>
+                <ParticipantProfile />
+              </ProtectedParticipantRoute>
+            } />
+            <Route path="/participant/documents" element={
+              <ProtectedParticipantRoute>
+                <ParticipantDocuments />
+              </ProtectedParticipantRoute>
             } />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
