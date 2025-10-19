@@ -1,0 +1,62 @@
+name: Deploy Jotform Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY" to confirm deployment'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'DEPLOY'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase Project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔗 Linking to Supabase project..."
+          supabase link --project-ref bqvptfdxnrzculgjcnjo
+
+      - name: Apply Storage Bucket Migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "📦 Applying storage bucket setup..."
+          supabase db push --include-all
+
+      - name: Deploy Edge Function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🚀 Deploying jotform-extractor Edge Function..."
+          supabase functions deploy jotform-extractor --no-verify-jwt
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment Complete!"
+          echo ""
+          echo "📋 What was deployed:"
+          echo "  1. Storage bucket 'documents' created/updated"
+          echo "  2. Storage bucket policies configured"
+          echo "  3. file_uploads table updated with source tracking"
+          echo "  4. jotform-extractor Edge Function deployed"
+          echo ""
+          echo "🔗 Edge Function URL:"
+          echo "  https://bqvptfdxnrzculgjcnjo.supabase.co/functions/v1/jotform-extractor"
+          echo ""
+          echo "📝 Next Steps:"
+          echo "  1. Go to your Jotform forms"
+          echo "  2. Add webhook: https://bqvptfdxnrzculgjcnjo.supabase.co/functions/v1/jotform-extractor"
+          echo "  3. Test with a file upload submission"
+          echo "  4. Check admin dashboard - files should appear in participant Documents tab"
