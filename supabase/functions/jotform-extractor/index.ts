@@ -256,15 +256,49 @@ function extractParticipantData(answers: Record<string, any>) {
 
   for (const [key, value] of Object.entries(answers)) {
     const answer = value as any
-    const fieldName = (answer?.name || answer?.text || key).toLowerCase()
-    const fieldValue = answer?.answer || answer?.prettyFormat || ''
+    const fieldText = (answer?.text || '').toLowerCase()
+    const fieldName = (answer?.name || '').toLowerCase()
+    const fieldValue = answer?.answer
 
-    if (fieldName.includes('name') || fieldName.includes('fullname')) {
-      name = String(fieldValue).trim()
-    } else if (fieldName.includes('email')) {
-      email = String(fieldValue).trim()
-    } else if (fieldName.includes('ndis') || fieldName.includes('participant')) {
-      ndisNumber = String(fieldValue).trim()
+    // Skip non-participant fields
+    if (!fieldText && !fieldName) continue
+
+    // Extract NDIS Number - look for specific text
+    if (
+      (fieldText.includes('ndis') && fieldText.includes('number')) ||
+      fieldName === 'ndisNumber' ||
+      fieldName.includes('ndisnumber')
+    ) {
+      ndisNumber = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract participant name - handle both string and object formats
+    if (
+      (fieldText.includes('participant') && fieldText.includes('name')) ||
+      (fieldText.includes('participant') && fieldText.includes('full name')) ||
+      fieldName === 'participantName' ||
+      fieldName.includes('ndisparticipants') && !fieldName.includes('email') && !fieldName.includes('phone')
+    ) {
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        // Handle fullname field format: {first: "Jessica", last: "Teasdale"}
+        const firstName = fieldValue.first || ''
+        const lastName = fieldValue.last || ''
+        name = `${firstName} ${lastName}`.trim()
+      } else {
+        name = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract participant email
+    if (
+      (fieldText.includes('participant') && fieldText.includes('email')) ||
+      fieldName === 'participantEmail' ||
+      (fieldName.includes('ndisparticipants') && fieldName.includes('email'))
+    ) {
+      email = String(fieldValue || '').trim()
+      continue
     }
   }
 
