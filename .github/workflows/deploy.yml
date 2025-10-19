@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   build-and-deploy:
@@ -28,17 +26,17 @@ jobs:
     - name: Build
       run: npm run build
 
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        path: './dist'
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
 
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+    - name: Deploy to S3
+      run: |
+        aws s3 sync ./dist s3://sda-property-admin --delete
+        echo "✅ Deployed to S3: http://sda-property-admin.s3-website-us-west-2.amazonaws.com"
 
   deploy-edge-functions:
     runs-on: ubuntu-latest
