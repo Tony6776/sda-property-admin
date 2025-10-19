@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 interface JotFormRequest {
-  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler'
+  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler' | 'configure_webhooks'
   form_ids?: string[]
   limit?: number
   offset?: number
@@ -25,6 +25,8 @@ interface JotFormRequest {
   formID?: string
   answers?: Record<string, any>
   rawRequest?: any
+  // Webhook configuration
+  webhook_url?: string
 }
 
 serve(async (req) => {
@@ -63,6 +65,10 @@ serve(async (req) => {
 
       case 'extract_all_data':
         result = await extractAllJotFormData(apiKey!, requestData.limit || 1000, requestData.include_ndis_only)
+        break
+
+      case 'configure_webhooks':
+        result = await configureWebhooksForAllForms(apiKey!, requestData.webhook_url || Deno.env.get('SUPABASE_URL') + '/functions/v1/jotform-extractor')
         break
 
       default:
@@ -453,4 +459,138 @@ async function extractAllJotFormData(apiKey: string, limit: number, ndisOnly: bo
     forms: formsResult.forms,
     submissions: submissionsResult.submissions
   }
+}
+
+// NEW: Configure webhooks for all forms with file uploads
+async function configureWebhooksForAllForms(apiKey: string, webhookUrl: string) {
+  console.log('🔗 Configuring webhooks for all forms')
+  console.log(`Webhook URL: ${webhookUrl}`)
+
+  // Get all forms
+  const formsResult = await getAllJotForms(apiKey, 1000)
+  const forms = formsResult.forms
+
+  const results = {
+    total_forms: forms.length,
+    forms_checked: 0,
+    webhooks_added: 0,
+    webhooks_existed: 0,
+    webhooks_failed: 0,
+    details: [] as any[]
+  }
+
+  for (const form of forms) {
+    try {
+      results.forms_checked++
+
+      // Get form questions to check if it has file upload fields
+      const questionsResponse = await fetch(`https://api.jotform.com/form/${form.id}/questions`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!questionsResponse.ok) {
+        console.warn(`Failed to get questions for form ${form.id}`)
+        continue
+      }
+
+      const questionsData = await questionsResponse.json()
+      const questions = questionsData.content || {}
+
+      // Check if form has file upload fields
+      const hasFileUpload = Object.values(questions).some((q: any) =>
+        q.type === 'control_fileupload'
+      )
+
+      if (!hasFileUpload) {
+        console.log(`⏭️  Skipping form ${form.id} (${form.title}) - no file upload fields`)
+        results.details.push({
+          form_id: form.id,
+          form_title: form.title,
+          status: 'skipped',
+          reason: 'no file upload fields'
+        })
+        continue
+      }
+
+      console.log(`📋 Form ${form.id} (${form.title}) has file upload - checking webhooks...`)
+
+      // Get existing webhooks
+      const webhooksResponse = await fetch(`https://api.jotform.com/form/${form.id}/webhooks`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (webhooksResponse.ok) {
+        const webhooksData = await webhooksResponse.json()
+        const existingWebhooks = webhooksData.content || []
+
+        // Check if webhook already exists
+        const webhookExists = existingWebhooks.some((w: string) => w.includes('jotform-extractor'))
+
+        if (webhookExists) {
+          console.log(`✅ Webhook already exists for form ${form.id}`)
+          results.webhooks_existed++
+          results.details.push({
+            form_id: form.id,
+            form_title: form.title,
+            status: 'existed',
+            webhook_url: webhookUrl
+          })
+          continue
+        }
+      }
+
+      // Add webhook
+      console.log(`➕ Adding webhook to form ${form.id}`)
+      const addWebhookResponse = await fetch(`https://api.jotform.com/form/${form.id}/webhooks`, {
+        method: 'POST',
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `webhookURL=${encodeURIComponent(webhookUrl)}`
+      })
+
+      if (addWebhookResponse.ok) {
+        console.log(`✅ Webhook added to form ${form.id}`)
+        results.webhooks_added++
+        results.details.push({
+          form_id: form.id,
+          form_title: form.title,
+          status: 'added',
+          webhook_url: webhookUrl
+        })
+      } else {
+        const errorText = await addWebhookResponse.text()
+        console.error(`Failed to add webhook to form ${form.id}:`, errorText)
+        results.webhooks_failed++
+        results.details.push({
+          form_id: form.id,
+          form_title: form.title,
+          status: 'failed',
+          error: errorText
+        })
+      }
+
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+    } catch (error: any) {
+      console.error(`Error processing form ${form.id}:`, error)
+      results.webhooks_failed++
+      results.details.push({
+        form_id: form.id,
+        form_title: form.title,
+        status: 'error',
+        error: error.message
+      })
+    }
+  }
+
+  return results
 }
