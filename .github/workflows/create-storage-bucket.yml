@@ -1,0 +1,31 @@
+name: Create Storage Bucket
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-bucket:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create documents bucket via Supabase API
+      run: |
+        echo "Creating storage bucket 'documents'..."
+        echo ""
+        echo "⚠️  This requires manual setup in Supabase Dashboard"
+        echo ""
+        echo "Go to: https://supabase.com/dashboard/project/bqvptfdxnrzculgjcnjo/storage/buckets"
+        echo ""
+        echo "Steps:"
+        echo "1. Click 'New bucket'"
+        echo "2. Name: documents"
+        echo "3. Public: No (private)"
+        echo "4. File size limit: 10485760 (10MB)"
+        echo "5. Click 'Create bucket'"
+        echo ""
+        echo "6. Go to Policies tab"
+        echo "7. Click 'New policy'"
+        echo "8. Use template: 'Allow authenticated users'"
+        echo "9. Apply for: INSERT, SELECT"
+        echo ""
+        echo "✅ Then your system will be fully operational!"
