@@ -254,6 +254,15 @@ function extractParticipantData(answers: Record<string, any>) {
   let email = ''
   let ndisNumber = ''
 
+  // Debug: Log all fields
+  console.log('🔍 Extracting participant data from fields:')
+  for (const [key, value] of Object.entries(answers)) {
+    const answer = value as any
+    if (answer?.type && answer?.text && answer?.answer) {
+      console.log(`  Field ${key}: type="${answer.type}", name="${answer.name}", text="${answer.text}", answer="${typeof answer.answer === 'object' ? JSON.stringify(answer.answer) : answer.answer}"`)
+    }
+  }
+
   for (const [key, value] of Object.entries(answers)) {
     const answer = value as any
     const fieldText = (answer?.text || '').toLowerCase()
