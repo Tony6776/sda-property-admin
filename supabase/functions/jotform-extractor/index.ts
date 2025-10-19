@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 interface JotFormRequest {
-  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler' | 'configure_webhooks'
+  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler' | 'configure_webhooks' | 'process_historical'
   form_ids?: string[]
   limit?: number
   offset?: number
@@ -69,6 +69,10 @@ serve(async (req) => {
 
       case 'configure_webhooks':
         result = await configureWebhooksForAllForms(apiKey!, requestData.webhook_url || Deno.env.get('SUPABASE_URL') + '/functions/v1/jotform-extractor')
+        break
+
+      case 'process_historical':
+        result = await processHistoricalSubmissions(apiKey!)
         break
 
       default:
@@ -596,6 +600,199 @@ async function configureWebhooksForAllForms(apiKey: string, webhookUrl: string) 
         status: 'error',
         error: error.message
       })
+    }
+  }
+
+  return results
+}
+
+// NEW: Process all historical submissions with file uploads
+async function processHistoricalSubmissions(apiKey: string) {
+  console.log('📚 Processing historical Jotform submissions')
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
+
+  // Forms with file upload fields (from configure_webhooks results)
+  const formsWithFiles = [
+    '252763626973065', // PLCG Project Progress Tracking Form
+    '252731735674059', // Property Maintenance Request - SDA Tenants
+    '251716128939869', // SDA POP Criteria
+    '251711198894063', // NDIS Support Plan Template
+    '250589077972876', // SDA Landlord Enrolment Documents
+    '242242586980059', // SDA Property Docs
+    '241030962693860', // LTC Property Response Form
+    '232252012714846', // WBL Sale Request
+    '231298175953870'  // SDA Property Request Form
+  ]
+
+  const results = {
+    total_submissions: 0,
+    processed_submissions: 0,
+    files_uploaded: 0,
+    participants_matched: 0,
+    participants_not_found: 0,
+    errors: 0,
+    details: [] as any[]
+  }
+
+  // Get all submissions from forms with file uploads
+  for (const formId of formsWithFiles) {
+    try {
+      console.log(`📋 Fetching submissions from form ${formId}`)
+
+      const response = await fetch(`https://api.jotform.com/form/${formId}/submissions?limit=1000`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.warn(`Failed to get submissions for form ${formId}`)
+        continue
+      }
+
+      const data = await response.json()
+      const submissions = data.content || []
+
+      console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
+      results.total_submissions += submissions.length
+
+      // Process each submission
+      for (const submission of submissions) {
+        try {
+          const submissionID = submission.id
+          const answers = submission.answers || {}
+
+          // Extract participant data
+          const participantData = extractParticipantData(answers)
+
+          // Extract file URLs
+          const fileUrls = extractFileUrls(answers)
+
+          if (fileUrls.length === 0) {
+            console.log(`⏭️  Submission ${submissionID} has no files`)
+            continue
+          }
+
+          console.log(`📎 Submission ${submissionID} has ${fileUrls.length} file(s)`)
+
+          // Find matching participant
+          const participant = await findParticipant(supabase, participantData)
+
+          if (!participant) {
+            console.warn(`⚠️  No participant found for submission ${submissionID}`, participantData)
+            results.participants_not_found++
+            results.details.push({
+              submission_id: submissionID,
+              form_id: formId,
+              status: 'participant_not_found',
+              participant_data: participantData,
+              files_count: fileUrls.length
+            })
+            continue
+          }
+
+          console.log(`✅ Matched participant: ${participant.id} (${participant.name})`)
+          results.participants_matched++
+
+          // Process each file
+          let filesUploaded = 0
+          for (const fileUrl of fileUrls) {
+            try {
+              console.log(`⬇️  Downloading: ${fileUrl}`)
+
+              // Download file from Jotform
+              const fileResponse = await fetch(fileUrl)
+              if (!fileResponse.ok) {
+                console.warn(`Failed to download file: ${fileResponse.status}`)
+                continue
+              }
+
+              const fileBlob = await fileResponse.blob()
+              const fileName = extractFilenameFromUrl(fileUrl)
+              const fileSize = fileBlob.size
+
+              // Categorize file
+              const category = categorizeFile(fileName)
+
+              // Upload to Supabase Storage
+              const storagePath = `participant/${participant.id}/${category}/${Date.now()}_${fileName}`
+
+              const { error: uploadError } = await supabase.storage
+                .from('documents')
+                .upload(storagePath, fileBlob, {
+                  contentType: fileBlob.type,
+                  upsert: false
+                })
+
+              if (uploadError) {
+                console.error(`Storage upload error:`, uploadError)
+                continue
+              }
+
+              console.log(`✅ Uploaded: ${storagePath}`)
+
+              // Save to file_uploads table
+              const { error: dbError } = await supabase
+                .from('file_uploads')
+                .insert({
+                  original_filename: fileName,
+                  stored_filename: fileName,
+                  file_size: fileSize,
+                  mime_type: fileBlob.type,
+                  storage_path: storagePath,
+                  storage_bucket: 'documents',
+                  file_category: category,
+                  entity_type: 'participant',
+                  entity_id: participant.id,
+                  ai_detected_type: category,
+                  ai_confidence: 85,
+                  ai_processed: true,
+                  source: 'jotform',
+                  source_submission_id: submissionID,
+                  jotform_form_id: formId,
+                  processed_at: new Date().toISOString(),
+                })
+
+              if (dbError) {
+                console.error(`Database insert error:`, dbError)
+                continue
+              }
+
+              filesUploaded++
+              results.files_uploaded++
+
+            } catch (fileError: any) {
+              console.error(`Error processing file ${fileUrl}:`, fileError)
+            }
+          }
+
+          results.processed_submissions++
+          results.details.push({
+            submission_id: submissionID,
+            form_id: formId,
+            participant_id: participant.id,
+            participant_name: participant.name,
+            files_uploaded: filesUploaded,
+            status: 'success'
+          })
+
+        } catch (submissionError: any) {
+          console.error(`Error processing submission:`, submissionError)
+          results.errors++
+        }
+      }
+
+      // Rate limiting between forms
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+    } catch (error: any) {
+      console.error(`Error processing form ${formId}:`, error)
+      results.errors++
     }
   }
 
