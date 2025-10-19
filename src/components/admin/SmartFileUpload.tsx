@@ -68,6 +68,14 @@ export function SmartFileUpload({
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [processing, setProcessing] = useState(false);
 
+  const removeFile = (fileId: string) => {
+    setFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const clearCompleted = () => {
+    setFiles(prev => prev.filter(f => f.status === 'uploading' || f.status === 'processing'));
+  };
+
   // Simulate AI file categorization (replace with real AI later)
   const categorizeFile = (filename: string, fileType: string): { category: string; confidence: number; extractedData?: any } => {
     const lowerName = filename.toLowerCase();
@@ -203,7 +211,13 @@ export function SmartFileUpload({
           setFiles(prev => prev.map(f =>
             f.id === uploadFile.id ? { ...f, status: 'error' } : f
           ));
-          toast.error(`Failed to upload ${uploadFile.file.name}`);
+
+          // Check if it's a bucket not found error
+          if (uploadError.message?.includes('not found') || uploadError.message?.includes('does not exist')) {
+            toast.error('Storage bucket "documents" not found. Please create it in Supabase Dashboard.');
+          } else {
+            toast.error(`Failed to upload ${uploadFile.file.name}: ${uploadError.message}`);
+          }
           continue;
         }
 
@@ -230,13 +244,22 @@ export function SmartFileUpload({
 
         if (dbError) {
           console.error('Database error:', dbError);
-          toast.error(`Failed to save file metadata`);
+          setFiles(prev => prev.map(f =>
+            f.id === uploadFile.id ? { ...f, status: 'error' } : f
+          ));
+
+          // Check if it's a table missing error
+          if (dbError.message?.includes('relation') || dbError.message?.includes('does not exist')) {
+            toast.error('Database tables not ready. Please apply migration first.');
+          } else {
+            toast.error(`Failed to save file metadata: ${dbError.message}`);
+          }
           continue;
         }
 
-        // Save extraction data
+        // Save extraction data (optional - don't fail upload if this fails)
         if (aiResult.extractedData) {
-          await supabase
+          const { error: extractionError } = await supabase
             .from('document_extractions')
             .insert({
               file_upload_id: fileRecord.id,
@@ -244,6 +267,11 @@ export function SmartFileUpload({
               extracted_fields: aiResult.extractedData,
               validation_status: 'pending',
             });
+
+          if (extractionError) {
+            console.warn('Failed to save extraction data:', extractionError);
+            // Don't fail the upload - extraction data is optional
+          }
         }
 
         // Update file status
@@ -345,10 +373,21 @@ export function SmartFileUpload({
         {/* Uploaded Files List */}
         {files.length > 0 && (
           <div className="space-y-3">
-            <h4 className="font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Uploaded Files ({files.length})
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Uploaded Files ({files.length})
+              </h4>
+              {files.some(f => f.status === 'completed' || f.status === 'error') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearCompleted}
+                >
+                  Clear Completed
+                </Button>
+              )}
+            </div>
 
             {files.map((uploadFile) => (
               <Card key={uploadFile.id} className="p-4">
@@ -366,12 +405,24 @@ export function SmartFileUpload({
                         {(uploadFile.file.size / 1024).toFixed(1)} KB
                       </p>
                     </div>
-                    {uploadFile.status === 'completed' && uploadFile.aiDetectedType && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        {getCategoryLabel(uploadFile.aiDetectedType)}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {uploadFile.status === 'completed' && uploadFile.aiDetectedType && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          {getCategoryLabel(uploadFile.aiDetectedType)}
+                        </Badge>
+                      )}
+                      {(uploadFile.status === 'completed' || uploadFile.status === 'error') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(uploadFile.id)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Progress Bar */}
