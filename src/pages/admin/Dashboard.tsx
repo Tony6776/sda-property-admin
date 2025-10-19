@@ -8,6 +8,7 @@ import { checkAdminAuth, signOutAdmin, AdminProfile } from "@/lib/adminAuthUtils
 import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
 import { AIAssistant } from "@/components/admin/AIAssistant";
+import { SetupVerification } from "@/components/admin/SetupVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -154,6 +155,9 @@ export default function AdminDashboard() {
 
           {/* Right Sidebar - AI Assistant & Tools */}
           <div className="space-y-6">
+            {/* Setup Verification */}
+            <SetupVerification />
+
             {/* AI Assistant */}
             <AIAssistant />
 
