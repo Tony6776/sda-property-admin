@@ -49,6 +49,11 @@ interface Property {
     images?: string[];
     airtable_id?: string;
   } | null;
+  // Multi-tenant fields
+  organization_id: string | null;
+  audience: string | null;
+  visible_on_participant_site: boolean | null;
+  visible_on_investor_site: boolean | null;
 }
 
 interface PropertyListEnhancedProps {
@@ -72,7 +77,7 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, accessibility')
+        .select('id, name, address, property_type, status, weekly_rent, price, bedrooms, bathrooms, sda_category, created_at, updated_at, accessibility, organization_id, audience, visible_on_participant_site, visible_on_investor_site')
         .order('updated_at', { ascending: false });
 
       console.log('[PropertyListEnhanced] Query result:', {
@@ -210,6 +215,25 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
     );
   };
 
+  const getOrganizationName = (orgId: string | null) => {
+    const orgs: Record<string, string> = {
+      homelander: 'Homelander',
+      plcg: 'PLCG',
+      channel_agent: 'Channel Agent'
+    };
+    return orgs[orgId || ''] || orgId || 'N/A';
+  };
+
+  const getAudienceLabel = (audience: string | null) => {
+    const labels: Record<string, string> = {
+      participant: 'Participant',
+      investor: 'Investor',
+      landlord: 'Landlord',
+      mixed: 'Mixed'
+    };
+    return labels[audience || ''] || audience || 'N/A';
+  };
+
   if (loading) {
     return (
       <Card>
@@ -337,7 +361,21 @@ export function PropertyListEnhanced({ onRefresh }: PropertyListEnhancedProps) {
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{property.name}</div>
-                          <div className="text-sm text-muted-foreground">{property.address}</div>
+                          <div className="text-sm text-muted-foreground mb-2">{property.address}</div>
+                          <div className="flex gap-1 flex-wrap">
+                            <Badge variant="outline" className="text-xs">
+                              {getOrganizationName(property.organization_id)}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {getAudienceLabel(property.audience)}
+                            </Badge>
+                            {property.visible_on_participant_site && (
+                              <Badge variant="default" className="text-xs">P</Badge>
+                            )}
+                            {property.visible_on_investor_site && (
+                              <Badge variant="default" className="text-xs">I</Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={property.property_type === 'sale' ? 'default' : property.property_type === 'lease' ? 'secondary' : 'outline'}>

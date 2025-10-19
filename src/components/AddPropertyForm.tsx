@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { X, Upload, Plus } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { X, Upload, Plus, Building, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,6 +30,11 @@ interface PropertyFormData {
   property_manager: string;
   description: string;
   features: string[];
+  // Multi-tenant fields
+  organization_id: string;
+  audience: string;
+  visible_on_participant_site: boolean;
+  visible_on_investor_site: boolean;
 }
 
 const FEATURE_OPTIONS = [
@@ -59,6 +65,19 @@ const DWELLING_TYPES = [
   'House'
 ];
 
+const ORGANIZATIONS = [
+  { id: 'homelander', name: 'Homelander SDA Solutions' },
+  { id: 'plcg', name: 'PLCG - Private Lending & Capital Group' },
+  { id: 'channel_agent', name: 'Channel Agent Real Estate' }
+];
+
+const AUDIENCES = [
+  { value: 'participant', label: 'Participant (NDIS)' },
+  { value: 'investor', label: 'Investor' },
+  { value: 'landlord', label: 'Landlord' },
+  { value: 'mixed', label: 'Mixed Audience' }
+];
+
 export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onCancel }) => {
   const [formData, setFormData] = useState<PropertyFormData>({
     name: '',
@@ -73,7 +92,11 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
     sda_category: '',
     property_manager: '',
     description: '',
-    features: []
+    features: [],
+    organization_id: 'homelander', // Default to Homelander
+    audience: 'mixed',
+    visible_on_participant_site: true,
+    visible_on_investor_site: false
   });
 
   const [images, setImages] = useState<File[]>([]);
@@ -152,7 +175,7 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
       // Upload images to storage first to avoid large JSON payloads
       const imageUrls = await uploadImagesToStorage(images);
 
-      // Prepare property data
+      // Prepare property data with multi-tenant fields
       const propertyData = {
         name: formData.name,
         address: formData.address,
@@ -166,7 +189,12 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
         property_manager: formData.property_manager || undefined,
         description: formData.description || undefined,
         features: formData.features,
-        images: imageUrls,
+        accessibility: { images: imageUrls },
+        // Multi-tenant fields
+        organization_id: formData.organization_id,
+        audience: formData.audience,
+        visible_on_participant_site: formData.visible_on_participant_site,
+        visible_on_investor_site: formData.visible_on_investor_site,
       };
 
       console.log('Submitting property:', propertyData);
@@ -330,7 +358,7 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="property_manager">Property Manager</Label>
                   <Input
@@ -338,6 +366,79 @@ export const AddPropertyForm: React.FC<AddPropertyFormProps> = ({ onSuccess, onC
                     value={formData.property_manager}
                     onChange={(e) => handleInputChange('property_manager', e.target.value)}
                   />
+                </div>
+              </div>
+
+              {/* Multi-Tenant Settings */}
+              <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Organization & Audience
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label htmlFor="organization_id">Managing Organization *</Label>
+                    <Select value={formData.organization_id} onValueChange={(value) => handleInputChange('organization_id', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORGANIZATIONS.map(org => (
+                          <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">Which business manages this property</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="audience">Target Audience *</Label>
+                    <Select value={formData.audience} onValueChange={(value) => handleInputChange('audience', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AUDIENCES.map(aud => (
+                          <SelectItem key={aud.value} value={aud.value}>{aud.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">Who is this property marketed to</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Website Visibility
+                  </Label>
+                  <div className="flex flex-col gap-3 ml-6">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="visible_participant"
+                        checked={formData.visible_on_participant_site}
+                        onCheckedChange={(checked) =>
+                          setFormData(prev => ({ ...prev, visible_on_participant_site: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="visible_participant" className="text-sm font-normal cursor-pointer">
+                        Show on Participant Site (sdabyhomelander.com.au)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="visible_investor"
+                        checked={formData.visible_on_investor_site}
+                        onCheckedChange={(checked) =>
+                          setFormData(prev => ({ ...prev, visible_on_investor_site: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="visible_investor" className="text-sm font-normal cursor-pointer">
+                        Show on Investor Site (sdacapital.com.au)
+                      </Label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
