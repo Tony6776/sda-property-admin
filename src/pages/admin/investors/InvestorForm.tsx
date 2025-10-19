@@ -189,6 +189,11 @@ export default function InvestorForm() {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Dashboard
+              </Button>
+              <div className="h-6 w-px bg-border" />
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/investors')}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Investors

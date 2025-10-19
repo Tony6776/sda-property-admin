@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 interface JotFormRequest {
-  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler' | 'configure_webhooks' | 'process_historical'
+  action: 'get_forms' | 'get_submissions' | 'extract_all_data' | 'sync_to_ghl' | 'webhook_handler' | 'configure_webhooks' | 'process_historical' | 'extract_participants' | 'extract_landlords' | 'extract_investors'
   form_ids?: string[]
   limit?: number
   offset?: number
@@ -75,6 +75,18 @@ serve(async (req) => {
         result = await processHistoricalSubmissions(apiKey!)
         break
 
+      case 'extract_participants':
+        result = await extractParticipantsFromJotform(apiKey!, requestData.form_ids || [])
+        break
+
+      case 'extract_landlords':
+        result = await extractLandlordsFromJotform(apiKey!, requestData.form_ids || [])
+        break
+
+      case 'extract_investors':
+        result = await extractInvestorsFromJotform(apiKey!, requestData.form_ids || [])
+        break
+
       default:
         throw new Error(`Unknown action: ${action}`)
     }
@@ -113,6 +125,57 @@ serve(async (req) => {
   }
 })
 
+// Detect form type from form ID and content
+function detectFormType(formID: string, answers: Record<string, any>): string {
+  // Service Agreement forms (known IDs from JotForm)
+  const serviceAgreementForms = [
+    '241191409987870', // NDIS SDA Service Agreement S1
+    '241190906049860', // NDIS ILO Service Agreement S2
+    '241191526850859', // NDIS ILO Service Agreement S3
+    '241191455605858', // NDIS ILO Service Agreement S4
+    '240977592477878', // NDIS Service Agreement
+    '240701567647864', // Private SDA Participant Ownership Advisory & Consultancy Service Agreement
+    '241071028714852', // NDIS Housing Assessment Exploration Report Service Agreement
+  ]
+
+  // Landlord forms
+  const landlordForms = [
+    '251780545796874', // SDA Landlord Leasing Authority
+    '250589077972876', // SDA Landlord Enrolment Documents
+    '240840938587873', // SDA Landlord Engagement Form
+    '240840670717861', // SDA Advertising Agreement
+  ]
+
+  // Investor forms
+  const investorForms = [
+    '241198305921860', // NDIS Investor Acquisition Form
+    '241040631577855', // NDIS Investor Acquisition Form
+    '240346955310857', // Investor/Developer NDIS Property Consultancy Form
+    '233451158282859', // EOI NDIS Channel Agent Form for investors
+    '232982830411858', // Investor's NDIS Property Procurement & Consultancy Form
+    '230887448824873', // NDIS Investor Acquisition Form
+  ]
+
+  if (serviceAgreementForms.includes(formID)) {
+    return 'service_agreement'
+  } else if (landlordForms.includes(formID)) {
+    return 'landlord'
+  } else if (investorForms.includes(formID)) {
+    return 'investor'
+  } else {
+    // Check content for hints
+    const allAnswersText = JSON.stringify(answers).toLowerCase()
+    if (allAnswersText.includes('service agreement') || allAnswersText.includes('terms and conditions')) {
+      return 'service_agreement'
+    } else if (allAnswersText.includes('landlord') || allAnswersText.includes('property owner')) {
+      return 'landlord'
+    } else if (allAnswersText.includes('investor') || allAnswersText.includes('investment')) {
+      return 'investor'
+    }
+    return 'participant'
+  }
+}
+
 // NEW: Handle Jotform webhook for automatic file uploads
 async function handleJotformWebhook(webhookData: JotFormRequest) {
   console.log('🔔 Processing Jotform webhook')
@@ -133,7 +196,11 @@ async function handleJotformWebhook(webhookData: JotFormRequest) {
 
     console.log(`📝 Processing submission ${submissionID} from form ${formID}`)
 
-    // Extract participant data
+    // Detect form type (service agreement, landlord, investor, participant, etc.)
+    const formType = detectFormType(formID, answers)
+    console.log(`🔍 Detected form type: ${formType}`)
+
+    // Extract participant data (works for all form types)
     const participantData = extractParticipantData(answers)
     console.log(`👤 Extracted participant: ${participantData.name}`)
 
@@ -174,9 +241,9 @@ async function handleJotformWebhook(webhookData: JotFormRequest) {
         const fileName = extractFilenameFromUrl(fileUrl)
         const fileSize = fileBlob.size
 
-        // Categorize file using AI
-        const category = categorizeFile(fileName)
-        console.log(`🤖 AI categorized as: ${category}`)
+        // Categorize file using AI and form type
+        const category = categorizeFile(fileName, formType)
+        console.log(`🤖 AI categorized as: ${category} (form type: ${formType})`)
 
         // Upload to Supabase Storage
         const storagePath = `participant/${participant.id}/${category}/${Date.now()}_${fileName}`
@@ -384,14 +451,42 @@ function extractFilenameFromUrl(url: string): string {
 }
 
 // Categorize file (same logic as SmartFileUpload)
-function categorizeFile(filename: string): string {
+function categorizeFile(filename: string, formType: string = 'participant'): string {
   const lowerName = filename.toLowerCase()
 
+  // If this is a service agreement form, all files are service agreements
+  if (formType === 'service_agreement') {
+    return 'service_agreement'
+  }
+
+  // If this is a landlord form, categorize as landlord documents
+  if (formType === 'landlord') {
+    if (lowerName.includes('abn') || lowerName.includes('business')) {
+      return 'landlord_business_docs'
+    }
+    if (lowerName.includes('bank') || lowerName.includes('bsb')) {
+      return 'landlord_banking'
+    }
+    if (lowerName.includes('ndis') || lowerName.includes('registration')) {
+      return 'landlord_compliance'
+    }
+    return 'landlord_document'
+  }
+
+  // If this is an investor form, categorize as investor documents
+  if (formType === 'investor') {
+    return 'investor_document'
+  }
+
+  // Participant document categorization (original logic)
   if (lowerName.includes('lease') || lowerName.includes('rental')) {
     return 'lease_agreement'
   }
   if (lowerName.includes('ndis') || lowerName.includes('plan')) {
     return 'ndis_plan'
+  }
+  if (lowerName.includes('service') && lowerName.includes('agreement')) {
+    return 'service_agreement'
   }
   if (lowerName.includes('id') || lowerName.includes('license') || lowerName.includes('passport')) {
     return 'participant_id'
@@ -830,4 +925,988 @@ async function processHistoricalSubmissions(apiKey: string) {
   }
 
   return results
+}
+
+// NEW: Extract participants from JotForm submissions with their preferences
+async function extractParticipantsFromJotform(apiKey: string, formIds: string[]) {
+  console.log('👥 Extracting participants from JotForm')
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
+
+  const results = {
+    total_submissions: 0,
+    participants_created: 0,
+    participants_updated: 0,
+    participants_skipped: 0,
+    errors: 0,
+    details: [] as any[]
+  }
+
+  for (const formId of formIds) {
+    try {
+      console.log(`📋 Fetching submissions from form ${formId}`)
+
+      const response = await fetch(`https://api.jotform.com/form/${formId}/submissions?limit=1000`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.warn(`Failed to get submissions for form ${formId}`)
+        continue
+      }
+
+      const data = await response.json()
+      const submissions = data.content || []
+
+      console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
+      results.total_submissions += submissions.length
+
+      // Process each submission
+      for (const submission of submissions) {
+        try {
+          const submissionID = submission.id
+          const answers = submission.answers || {}
+
+          // Extract participant data
+          const participantData = extractParticipantDataWithPreferences(answers, formId)
+
+          // Skip if no valid participant data
+          if (!participantData.name && !participantData.ndisNumber && !participantData.email) {
+            console.log(`⏭️  Submission ${submissionID} has no participant data`)
+            results.participants_skipped++
+            continue
+          }
+
+          console.log(`👤 Processing participant: ${participantData.name || 'Unknown'} (NDIS: ${participantData.ndisNumber || 'N/A'})`)
+
+          // Check if participant exists
+          let existingParticipant = null
+
+          // Try to find by NDIS number first
+          if (participantData.ndisNumber) {
+            const { data: byNdis } = await supabase
+              .from('participants')
+              .select('*')
+              .eq('ndis_number', participantData.ndisNumber)
+              .limit(1)
+              .maybeSingle()
+
+            if (byNdis) existingParticipant = byNdis
+          }
+
+          // If not found, try by name
+          if (!existingParticipant && participantData.name) {
+            const { data: byName } = await supabase
+              .from('participants')
+              .select('*')
+              .ilike('name', participantData.name)
+              .limit(1)
+              .maybeSingle()
+
+            if (byName) existingParticipant = byName
+          }
+
+          if (existingParticipant) {
+            // Update existing participant with new preferences
+            const { error } = await supabase
+              .from('participants')
+              .update({
+                housing_preferences: participantData.housing_preferences,
+                support_level: participantData.support_level || existingParticipant.support_level,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingParticipant.id)
+
+            if (error) {
+              console.error(`Error updating participant:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Updated participant: ${existingParticipant.id}`)
+              results.participants_updated++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                participant_id: existingParticipant.id,
+                participant_name: participantData.name,
+                action: 'updated',
+                preferences: participantData.housing_preferences
+              })
+            }
+          } else {
+            // Create new participant
+            const newParticipant = {
+              name: participantData.name || 'Unknown',
+              ndis_number: participantData.ndisNumber || null,
+              age: participantData.age || null,
+              disability_category: participantData.disability_category || null,
+              support_level: participantData.support_level || 'Medium',
+              current_housing_type: participantData.current_housing_type || null,
+              housing_status: 'Seeking SDA',
+              housing_preferences: participantData.housing_preferences || null,
+              participant_status: 'pending',
+              priority_level: 'medium',
+              notes: `Auto-created from JotForm submission ${submissionID} (Form ${formId})\n${participantData.notes || ''}`,
+              created_at: new Date().toISOString()
+            }
+
+            const { data: created, error } = await supabase
+              .from('participants')
+              .insert([newParticipant])
+              .select()
+              .single()
+
+            if (error) {
+              console.error(`Error creating participant:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Created participant: ${created.id}`)
+              results.participants_created++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                participant_id: created.id,
+                participant_name: participantData.name,
+                action: 'created',
+                preferences: participantData.housing_preferences
+              })
+            }
+          }
+
+        } catch (submissionError: any) {
+          console.error(`Error processing submission:`, submissionError)
+          results.errors++
+        }
+      }
+
+      // Rate limiting between forms
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+    } catch (error: any) {
+      console.error(`Error processing form ${formId}:`, error)
+      results.errors++
+    }
+  }
+
+  return results
+}
+
+// Extract participant data with housing preferences from JotForm answers
+function extractParticipantDataWithPreferences(answers: Record<string, any>, formId: string) {
+  let name = ''
+  let email = ''
+  let ndisNumber = ''
+  let age: number | null = null
+  let disability_category = ''
+  let support_level = ''
+  let current_housing_type = ''
+  let housing_preferences = ''
+  let notes = ''
+
+  const preferences: string[] = []
+
+  for (const [key, value] of Object.entries(answers)) {
+    const answer = value as any
+    const fieldText = (answer?.text || '').toLowerCase()
+    const fieldName = (answer?.name || '').toLowerCase()
+    const fieldValue = answer?.answer
+
+    // Skip non-participant fields
+    if (!fieldText && !fieldName) continue
+
+    // Extract NDIS Number
+    if (
+      (fieldText.includes('ndis') && fieldText.includes('number')) ||
+      fieldName.includes('ndis') && fieldName.includes('number')
+    ) {
+      ndisNumber = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract participant name
+    if (
+      (fieldText.includes('participant') && fieldText.includes('name') && !fieldText.includes('plan manager') && !fieldText.includes('support coordinator')) ||
+      (fieldText === "ndis participant's full name") ||
+      (fieldName.includes('participant') && fieldName.includes('name'))
+    ) {
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        const firstName = fieldValue.first || ''
+        const lastName = fieldValue.last || ''
+        name = `${firstName} ${lastName}`.trim()
+      } else {
+        name = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract email
+    if (
+      (fieldText.includes('participant') && fieldText.includes('email')) ||
+      (fieldName.includes('participant') && fieldName.includes('email'))
+    ) {
+      email = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract age
+    if (fieldText.includes('age') || fieldName.includes('age')) {
+      const ageValue = parseInt(String(fieldValue || '0'))
+      if (ageValue > 0 && ageValue < 150) {
+        age = ageValue
+      }
+      continue
+    }
+
+    // Extract disability category
+    if (
+      fieldText.includes('disability') && (fieldText.includes('type') || fieldText.includes('category'))
+    ) {
+      disability_category = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract support level
+    if (
+      fieldText.includes('support') && (fieldText.includes('level') || fieldText.includes('requirement'))
+    ) {
+      support_level = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract current housing
+    if (
+      fieldText.includes('current') && fieldText.includes('housing') ||
+      fieldText.includes('living') && fieldText.includes('situation')
+    ) {
+      current_housing_type = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract location preference
+    if (
+      fieldText.includes('location') ||
+      fieldText.includes('suburb') ||
+      fieldText.includes('area') ||
+      fieldText.includes('where')
+    ) {
+      const locationPref = String(fieldValue || '').trim()
+      if (locationPref) {
+        preferences.push(`Location: ${locationPref}`)
+      }
+      continue
+    }
+
+    // Extract property type preference
+    if (
+      fieldText.includes('property') && fieldText.includes('type') ||
+      fieldText.includes('housing') && fieldText.includes('type')
+    ) {
+      const typePref = String(fieldValue || '').trim()
+      if (typePref) {
+        preferences.push(`Property Type: ${typePref}`)
+      }
+      continue
+    }
+
+    // Extract bedroom preference
+    if (fieldText.includes('bedroom') || fieldText.includes('room')) {
+      const bedroomPref = String(fieldValue || '').trim()
+      if (bedroomPref) {
+        preferences.push(`Bedrooms: ${bedroomPref}`)
+      }
+      continue
+    }
+
+    // Extract accessibility needs
+    if (
+      fieldText.includes('accessibility') ||
+      fieldText.includes('accessible') ||
+      fieldText.includes('modification')
+    ) {
+      const accessPref = String(fieldValue || '').trim()
+      if (accessPref) {
+        preferences.push(`Accessibility: ${accessPref}`)
+      }
+      continue
+    }
+
+    // Extract budget/funding
+    if (
+      fieldText.includes('budget') ||
+      fieldText.includes('funding') ||
+      fieldText.includes('price')
+    ) {
+      const budgetPref = String(fieldValue || '').trim()
+      if (budgetPref) {
+        preferences.push(`Budget: ${budgetPref}`)
+      }
+      continue
+    }
+
+    // Extract other preferences
+    if (
+      fieldText.includes('preference') ||
+      fieldText.includes('requirement') ||
+      fieldText.includes('need')
+    ) {
+      const otherPref = String(fieldValue || '').trim()
+      if (otherPref && otherPref.length > 3) {
+        preferences.push(otherPref)
+      }
+      continue
+    }
+  }
+
+  // Combine all preferences
+  if (preferences.length > 0) {
+    housing_preferences = preferences.join('\n')
+  }
+
+  // Add form-specific notes
+  if (formId === '231298175953870') {
+    notes = 'From SDA Property Request Form'
+  } else if (formId === '241191409987870') {
+    notes = 'From NDIS SDA Service Agreement S1'
+  } else if (formId === '240977592477878') {
+    notes = 'From NDIS Service Agreement'
+  }
+
+  return {
+    name,
+    email,
+    ndisNumber,
+    age,
+    disability_category,
+    support_level,
+    current_housing_type,
+    housing_preferences,
+    notes
+  }
+}
+// Landlord and Investor extraction functions for JotForm
+// This file will be appended to the main index.ts
+
+// Extract landlords from JotForm submissions
+async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
+  console.log('🏢 Extracting landlords from JotForm')
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
+
+  const results = {
+    total_submissions: 0,
+    landlords_created: 0,
+    landlords_updated: 0,
+    landlords_skipped: 0,
+    errors: 0,
+    details: [] as any[]
+  }
+
+  for (const formId of formIds) {
+    try {
+      console.log(`📋 Fetching submissions from form ${formId}`)
+
+      const response = await fetch(`https://api.jotform.com/form/${formId}/submissions?limit=1000`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.warn(`Failed to get submissions for form ${formId}`)
+        continue
+      }
+
+      const data = await response.json()
+      const submissions = data.content || []
+
+      console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
+      results.total_submissions += submissions.length
+
+      // Process each submission
+      for (const submission of submissions) {
+        try {
+          const submissionID = submission.id
+          const answers = submission.answers || {}
+
+          // Extract landlord data
+          const landlordData = extractLandlordData(answers, formId)
+
+          // Skip if no valid landlord data (both fields required by database schema)
+          if (!landlordData.full_name || !landlordData.email) {
+            console.log(`⏭️  Submission ${submissionID} missing required fields (name: ${landlordData.full_name || 'N/A'}, email: ${landlordData.email || 'N/A'})`)
+            results.landlords_skipped++
+            continue
+          }
+
+          console.log(`🏢 Processing landlord: ${landlordData.full_name || 'Unknown'} (Email: ${landlordData.email || 'N/A'})`)
+
+          // Check if landlord exists
+          let existingLandlord = null
+
+          // Try to find by email first
+          if (landlordData.email) {
+            const { data: byEmail } = await supabase
+              .from('landlords')
+              .select('*')
+              .eq('email', landlordData.email)
+              .limit(1)
+              .maybeSingle()
+
+            if (byEmail) existingLandlord = byEmail
+          }
+
+          // If not found, try by name and ABN
+          if (!existingLandlord && landlordData.full_name && landlordData.abn) {
+            const { data: byNameAbn } = await supabase
+              .from('landlords')
+              .select('*')
+              .eq('full_name', landlordData.full_name)
+              .eq('abn', landlordData.abn)
+              .limit(1)
+              .maybeSingle()
+
+            if (byNameAbn) existingLandlord = byNameAbn
+          }
+
+          if (existingLandlord) {
+            // Update existing landlord
+            const { error } = await supabase
+              .from('landlords')
+              .update({
+                phone: landlordData.phone || existingLandlord.phone,
+                business_name: landlordData.business_name || existingLandlord.business_name,
+                abn: landlordData.abn || existingLandlord.abn,
+                address: landlordData.address || existingLandlord.address,
+                ndis_registered: landlordData.ndis_registered || existingLandlord.ndis_registered,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingLandlord.id)
+
+            if (error) {
+              console.error(`Error updating landlord:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Updated landlord: ${existingLandlord.id}`)
+              results.landlords_updated++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                landlord_id: existingLandlord.id,
+                landlord_name: landlordData.full_name,
+                action: 'updated'
+              })
+            }
+          } else {
+            // Create new landlord (full_name and email are required by schema)
+            const newLandlord = {
+              full_name: landlordData.full_name, // Already validated as not empty
+              email: landlordData.email, // Already validated as not empty
+              phone: landlordData.phone || null,
+              business_name: landlordData.business_name || null,
+              abn: landlordData.abn || null,
+              address: landlordData.address || null,
+              ndis_registered: landlordData.ndis_registered || false,
+              registration_number: landlordData.registration_number || null,
+              registration_expiry: landlordData.registration_expiry || null,
+              bank_name: landlordData.bank_name || null,
+              bsb: landlordData.bank_bsb || null,
+              account_number: landlordData.bank_account_number || null,
+              status: 'active',
+              organization_id: 'homelander',
+              created_at: new Date().toISOString()
+            }
+
+            const { data: created, error } = await supabase
+              .from('landlords')
+              .insert([newLandlord])
+              .select()
+              .single()
+
+            if (error) {
+              console.error(`Error creating landlord:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Created landlord: ${created.id}`)
+              results.landlords_created++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                landlord_id: created.id,
+                landlord_name: landlordData.full_name,
+                action: 'created'
+              })
+            }
+          }
+
+        } catch (submissionError: any) {
+          console.error(`Error processing submission:`, submissionError)
+          results.errors++
+        }
+      }
+
+      // Rate limiting between forms
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+    } catch (error: any) {
+      console.error(`Error processing form ${formId}:`, error)
+      results.errors++
+    }
+  }
+
+  return results
+}
+
+// Extract landlord data from JotForm answers
+function extractLandlordData(answers: Record<string, any>, formId: string) {
+  let full_name = ''
+  let email = ''
+  let phone = ''
+  let business_name = ''
+  let abn = ''
+  let address = ''
+  let ndis_registered = false
+  let registration_number = ''
+  let registration_expiry = ''
+  let bank_name = ''
+  let bank_bsb = ''
+  let bank_account_number = ''
+
+  for (const [key, value] of Object.entries(answers)) {
+    const answer = value as any
+    const fieldText = (answer?.text || '').toLowerCase()
+    const fieldName = (answer?.name || '').toLowerCase()
+    const fieldValue = answer?.answer
+
+    // Skip non-landlord fields
+    if (!fieldText && !fieldName) continue
+
+    // Extract landlord name (flexible matching)
+    if (
+      fieldText.includes('landlord') && fieldText.includes('name') ||
+      fieldText.includes('owner') && fieldText.includes('name') ||
+      fieldText.includes('property owner') ||
+      fieldName.includes('landlord') && fieldName.includes('name') ||
+      fieldName.includes('fullname') ||
+      fieldName.includes('full_name') ||
+      (fieldText.includes('name') && !fieldText.includes('business') && !fieldText.includes('company') && !fieldText.includes('bank'))
+    ) {
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        const firstName = fieldValue.first || ''
+        const lastName = fieldValue.last || ''
+        full_name = `${firstName} ${lastName}`.trim()
+      } else if (fieldValue && String(fieldValue).trim()) {
+        full_name = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract email (flexible matching)
+    if (
+      fieldText.includes('email') ||
+      fieldName.includes('email') ||
+      fieldName === 'email'
+    ) {
+      if (fieldValue && String(fieldValue).trim()) {
+        email = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract phone (flexible matching)
+    if (
+      fieldText.includes('phone') ||
+      fieldText.includes('mobile') ||
+      fieldText.includes('contact') && fieldText.includes('number') ||
+      fieldName.includes('phone') ||
+      fieldName.includes('mobile')
+    ) {
+      if (fieldValue && String(fieldValue).trim()) {
+        phone = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract business name
+    if (
+      fieldText.includes('business') && fieldText.includes('name') ||
+      fieldText.includes('company') && fieldText.includes('name')
+    ) {
+      business_name = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract ABN
+    if (
+      fieldText.includes('abn') ||
+      fieldText.includes('australian business number')
+    ) {
+      abn = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract address
+    if (
+      fieldText.includes('address') && !fieldText.includes('email') ||
+      fieldText.includes('location')
+    ) {
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        const parts = []
+        if (fieldValue.addr_line1) parts.push(fieldValue.addr_line1)
+        if (fieldValue.city) parts.push(fieldValue.city)
+        if (fieldValue.state) parts.push(fieldValue.state)
+        if (fieldValue.postal) parts.push(fieldValue.postal)
+        address = parts.join(', ')
+      } else {
+        address = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract NDIS registration
+    if (
+      fieldText.includes('ndis') && fieldText.includes('registered') ||
+      fieldText.includes('ndis') && fieldText.includes('provider')
+    ) {
+      const value = String(fieldValue || '').toLowerCase()
+      ndis_registered = value === 'yes' || value === 'true' || value === '1'
+      continue
+    }
+
+    // Extract registration number
+    if (
+      fieldText.includes('registration') && fieldText.includes('number') ||
+      fieldText.includes('provider') && fieldText.includes('number')
+    ) {
+      registration_number = String(fieldValue || '').trim()
+      continue
+    }
+
+    // Extract bank details
+    if (fieldText.includes('bank') && fieldText.includes('name')) {
+      bank_name = String(fieldValue || '').trim()
+      continue
+    }
+
+    if (fieldText.includes('bsb')) {
+      bank_bsb = String(fieldValue || '').trim()
+      continue
+    }
+
+    if (
+      fieldText.includes('account') && fieldText.includes('number') &&
+      !fieldText.includes('abn')
+    ) {
+      bank_account_number = String(fieldValue || '').trim()
+      continue
+    }
+  }
+
+  return {
+    full_name,
+    email,
+    phone,
+    business_name,
+    abn,
+    address,
+    ndis_registered,
+    registration_number,
+    registration_expiry,
+    bank_name,
+    bank_bsb,
+    bank_account_number
+  }
+}
+
+// Extract investors from JotForm submissions
+async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
+  console.log('💰 Extracting investors from JotForm')
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
+
+  const results = {
+    total_submissions: 0,
+    investors_created: 0,
+    investors_updated: 0,
+    investors_skipped: 0,
+    errors: 0,
+    details: [] as any[]
+  }
+
+  for (const formId of formIds) {
+    try {
+      console.log(`📋 Fetching submissions from form ${formId}`)
+
+      const response = await fetch(`https://api.jotform.com/form/${formId}/submissions?limit=1000`, {
+        headers: {
+          'APIKEY': apiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.warn(`Failed to get submissions for form ${formId}`)
+        continue
+      }
+
+      const data = await response.json()
+      const submissions = data.content || []
+
+      console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
+      results.total_submissions += submissions.length
+
+      // Process each submission
+      for (const submission of submissions) {
+        try {
+          const submissionID = submission.id
+          const answers = submission.answers || {}
+
+          // Extract investor data
+          const investorData = extractInvestorData(answers, formId)
+
+          // Skip if no valid investor data
+          if (!investorData.full_name || !investorData.email) {
+            console.log(`⏭️  Submission ${submissionID} missing required fields (name: ${investorData.full_name || 'N/A'}, email: ${investorData.email || 'N/A'})`)
+            results.investors_skipped++
+            continue
+          }
+
+          console.log(`💰 Processing investor: ${investorData.full_name} (Email: ${investorData.email})`)
+
+          // Check if investor exists by email
+          const { data: existing } = await supabase
+            .from('investors')
+            .select('*')
+            .eq('email', investorData.email)
+            .limit(1)
+            .maybeSingle()
+
+          if (existing) {
+            // Update existing investor
+            const { error } = await supabase
+              .from('investors')
+              .update({
+                phone: investorData.phone || existing.phone,
+                available_capital: investorData.available_capital || existing.available_capital,
+                preferred_property_types: investorData.preferred_property_types.length > 0
+                  ? investorData.preferred_property_types
+                  : existing.preferred_property_types,
+                preferred_locations: investorData.preferred_locations.length > 0
+                  ? investorData.preferred_locations
+                  : existing.preferred_locations,
+                risk_tolerance: investorData.risk_tolerance || existing.risk_tolerance,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existing.id)
+
+            if (error) {
+              console.error(`Error updating investor:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Updated investor: ${existing.id}`)
+              results.investors_updated++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                investor_id: existing.id,
+                investor_name: investorData.full_name,
+                action: 'updated'
+              })
+            }
+          } else {
+            // Create new investor
+            const newInvestor = {
+              full_name: investorData.full_name,
+              email: investorData.email,
+              phone: investorData.phone || null,
+              available_capital: investorData.available_capital || 0,
+              preferred_property_types: investorData.preferred_property_types.length > 0
+                ? investorData.preferred_property_types
+                : ['sda', 'ndis'],
+              preferred_locations: investorData.preferred_locations.length > 0
+                ? investorData.preferred_locations
+                : [],
+              risk_tolerance: investorData.risk_tolerance || 'medium',
+              organization_id: 'plcg',
+              created_at: new Date().toISOString()
+            }
+
+            const { data: created, error } = await supabase
+              .from('investors')
+              .insert([newInvestor])
+              .select()
+              .single()
+
+            if (error) {
+              console.error(`Error creating investor:`, error)
+              results.errors++
+            } else {
+              console.log(`✅ Created investor: ${created.id}`)
+              results.investors_created++
+              results.details.push({
+                submission_id: submissionID,
+                form_id: formId,
+                investor_id: created.id,
+                investor_name: investorData.full_name,
+                action: 'created'
+              })
+            }
+          }
+
+        } catch (submissionError: any) {
+          console.error(`Error processing submission:`, submissionError)
+          results.errors++
+        }
+      }
+
+      // Rate limiting between forms
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+    } catch (error: any) {
+      console.error(`Error processing form ${formId}:`, error)
+      results.errors++
+    }
+  }
+
+  return results
+}
+
+// Extract investor data from JotForm answers
+function extractInvestorData(answers: Record<string, any>, formId: string) {
+  let full_name = ''
+  let email = ''
+  let phone = ''
+  let available_capital = 0
+  const preferred_property_types: string[] = []
+  const preferred_locations: string[] = []
+  let risk_tolerance = ''
+
+  for (const [key, value] of Object.entries(answers)) {
+    const answer = value as any
+    const fieldText = (answer?.text || '').toLowerCase()
+    const fieldName = (answer?.name || '').toLowerCase()
+    const fieldValue = answer?.answer
+
+    // Skip non-investor fields
+    if (!fieldText && !fieldName) continue
+
+    // Extract investor name (flexible matching)
+    if (
+      fieldText.includes('investor') && fieldText.includes('name') ||
+      fieldText.includes('your') && fieldText.includes('name') ||
+      fieldName.includes('investor') && fieldName.includes('name') ||
+      fieldName.includes('fullname') ||
+      fieldName.includes('full_name') ||
+      fieldName === 'name' ||
+      (fieldText.includes('name') && !fieldText.includes('business') && !fieldText.includes('company'))
+    ) {
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        const firstName = fieldValue.first || ''
+        const lastName = fieldValue.last || ''
+        full_name = `${firstName} ${lastName}`.trim()
+      } else if (fieldValue && String(fieldValue).trim()) {
+        full_name = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract email (flexible matching)
+    if (
+      fieldText.includes('email') ||
+      fieldName.includes('email') ||
+      fieldName === 'email'
+    ) {
+      if (fieldValue && String(fieldValue).trim()) {
+        email = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract phone (flexible matching)
+    if (
+      fieldText.includes('phone') ||
+      fieldText.includes('mobile') ||
+      fieldText.includes('contact') && fieldText.includes('number') ||
+      fieldName.includes('phone') ||
+      fieldName.includes('mobile')
+    ) {
+      if (fieldValue && String(fieldValue).trim()) {
+        phone = String(fieldValue || '').trim()
+      }
+      continue
+    }
+
+    // Extract available capital
+    if (
+      fieldText.includes('capital') ||
+      fieldText.includes('investment') && fieldText.includes('amount') ||
+      fieldText.includes('budget') ||
+      fieldName.includes('capital')
+    ) {
+      const capitalStr = String(fieldValue || '').replace(/[^0-9.]/g, '')
+      const capitalNum = parseFloat(capitalStr)
+      if (!isNaN(capitalNum) && capitalNum > 0) {
+        available_capital = capitalNum
+      }
+      continue
+    }
+
+    // Extract property type preferences
+    if (
+      fieldText.includes('property') && fieldText.includes('type') ||
+      fieldText.includes('investment') && fieldText.includes('type')
+    ) {
+      const types = String(fieldValue || '').toLowerCase()
+      if (types.includes('sda')) preferred_property_types.push('sda')
+      if (types.includes('ndis')) preferred_property_types.push('ndis')
+      if (types.includes('residential')) preferred_property_types.push('residential')
+      if (types.includes('commercial')) preferred_property_types.push('commercial')
+      continue
+    }
+
+    // Extract location preferences
+    if (
+      fieldText.includes('location') ||
+      fieldText.includes('area') ||
+      fieldText.includes('suburb') ||
+      fieldText.includes('region')
+    ) {
+      const locations = String(fieldValue || '').split(/[,;]/).map(l => l.trim()).filter(l => l)
+      preferred_locations.push(...locations)
+      continue
+    }
+
+    // Extract risk tolerance
+    if (
+      fieldText.includes('risk') ||
+      fieldName.includes('risk')
+    ) {
+      const riskStr = String(fieldValue || '').toLowerCase()
+      if (riskStr.includes('low')) risk_tolerance = 'low'
+      else if (riskStr.includes('high')) risk_tolerance = 'high'
+      else risk_tolerance = 'medium'
+      continue
+    }
+  }
+
+  return {
+    full_name,
+    email,
+    phone,
+    available_capital,
+    preferred_property_types: [...new Set(preferred_property_types)], // Remove duplicates
+    preferred_locations: [...new Set(preferred_locations)], // Remove duplicates
+    risk_tolerance
+  }
 }

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, LayoutDashboard, Home, Users, Building2, Briefcase, TrendingUp } from "lucide-react";
+import { LogOut, LayoutDashboard, Home, Users, Building2, Briefcase, TrendingUp, DollarSign } from "lucide-react";
 import { checkAdminAuth, signOutAdmin, AdminProfile } from "@/lib/adminAuthUtils";
 import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
@@ -202,6 +202,22 @@ export default function AdminDashboard() {
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Investors
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/tenancies')}
+                >
+                  <Home className="mr-2 h-4 w-4" />
+                  Tenancies
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/admin/payments/ndia-batches')}
+                >
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  NDIA Payments
                 </Button>
                 <Button
                   variant="outline"

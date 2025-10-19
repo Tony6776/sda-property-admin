@@ -38,6 +38,7 @@ const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 
 // Admin: Participants
 const ParticipantList = lazy(() => import("./pages/admin/participants/ParticipantList"));
+const ParticipantForm = lazy(() => import("./pages/admin/participants/ParticipantForm"));
 const AdminParticipantProfile = lazy(() => import("./pages/admin/participants/ParticipantProfile"));
 
 // Admin: Landlords
@@ -53,6 +54,12 @@ const JobDetail = lazy(() => import("./pages/admin/jobs/JobDetail"));
 // Admin: Investors
 const InvestorList = lazy(() => import("./pages/admin/investors/InvestorList"));
 const InvestorForm = lazy(() => import("./pages/admin/investors/InvestorForm"));
+
+// Admin: Tenancies
+const TenancyList = lazy(() => import("./pages/admin/tenancies/TenancyList"));
+
+// Admin: NDIA Payments
+const NDIABatchList = lazy(() => import("./pages/admin/payments/NDIABatchList"));
 
 // Participant routes
 const ParticipantSignup = lazy(() => import("./pages/participant/Signup"));
@@ -121,9 +128,19 @@ const App = () => (
                 <ParticipantList />
               </ProtectedRoute>
             } />
+            <Route path="/admin/participants/new" element={
+              <ProtectedRoute>
+                <ParticipantForm />
+              </ProtectedRoute>
+            } />
             <Route path="/admin/participants/:id" element={
               <ProtectedRoute>
                 <AdminParticipantProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/participants/:id/edit" element={
+              <ProtectedRoute>
+                <ParticipantForm />
               </ProtectedRoute>
             } />
 
@@ -185,6 +202,20 @@ const App = () => (
             <Route path="/admin/investors/:id/edit" element={
               <ProtectedRoute>
                 <InvestorForm />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: Tenancy Management */}
+            <Route path="/admin/tenancies" element={
+              <ProtectedRoute>
+                <TenancyList />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin: NDIA Payment Batches */}
+            <Route path="/admin/payments/ndia-batches" element={
+              <ProtectedRoute>
+                <NDIABatchList />
               </ProtectedRoute>
             } />
 

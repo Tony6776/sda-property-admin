@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, RefreshCw, Eye } from "lucide-react";
+import { Plus, RefreshCw, Eye, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 interface Job {
@@ -127,6 +127,10 @@ export default function JobList() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Dashboard
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchJobs}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh

@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, Eye } from "lucide-react";
+import { Plus, RefreshCw, Eye, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 interface Investor {
@@ -120,6 +120,10 @@ export default function InvestorList() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Dashboard
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchInvestors}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh

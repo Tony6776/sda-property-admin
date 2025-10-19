@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Search, Users, TrendingUp, FileText, Loader2 } from "lucide-react";
+import { Search, Users, TrendingUp, FileText, Loader2, ArrowLeft, UserPlus, Download } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -157,14 +157,62 @@ export default function ParticipantList() {
     );
   }
 
+  const handleExtractFromJotform = async () => {
+    setLoading(true);
+    try {
+      toast.info("Extracting participants from JotForm...");
+
+      // Call the JotForm extractor Edge Function to extract participants
+      const { data, error } = await supabase.functions.invoke('jotform-extractor', {
+        body: {
+          action: 'extract_participants',
+          form_ids: [
+            '231298175953870', // SDA Property Request Form
+            '241191409987870', // NDIS SDA Service Agreement S1
+            '240977592477878'  // NDIS Service Agreement
+          ]
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Extracted ${data.participants_created || 0} new participants from JotForm`);
+      fetchParticipants(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error extracting from JotForm:', error);
+      toast.error(`Failed to extract participants: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Participant Management</h1>
-          <p className="text-muted-foreground">
-            Manage NDIS participants and track engagement
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-4 mb-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Dashboard
+              </Button>
+              <div className="h-6 w-px bg-border" />
+              <h1 className="text-3xl font-bold">Participant Management</h1>
+            </div>
+            <p className="text-muted-foreground">
+              Manage NDIS participants and track engagement
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleExtractFromJotform} disabled={loading}>
+              <Download className="h-4 w-4 mr-2" />
+              Extract from JotForm
+            </Button>
+            <Button onClick={() => navigate('/admin/participants/new')}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Participant
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

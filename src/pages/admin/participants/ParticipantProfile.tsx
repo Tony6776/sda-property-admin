@@ -22,7 +22,8 @@ import {
   MapPin,
   User,
   Building2,
-  Activity
+  Activity,
+  SquarePen
 } from "lucide-react";
 
 interface Participant {
@@ -169,14 +170,22 @@ export default function ParticipantProfile() {
       <div className="container mx-auto px-4 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/admin/participants')}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Participants
-          </Button>
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/admin/dashboard')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Return to Dashboard
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/admin/participants')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Participants
+            </Button>
+          </div>
 
           <div className="flex items-start justify-between">
             <div>
@@ -192,6 +201,13 @@ export default function ParticipantProfile() {
             </div>
 
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/admin/participants/${id}/edit`)}
+              >
+                <SquarePen className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
               <Button onClick={handleSendEmail}>
                 <Mail className="h-4 w-4 mr-2" />
                 Send Email
