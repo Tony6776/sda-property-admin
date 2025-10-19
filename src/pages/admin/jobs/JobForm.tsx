@@ -44,7 +44,7 @@ export default function JobForm() {
     property_address: "",
     total_investment_required: 0,
     expected_roi: 0,
-    status: "planning",
+    status: "new",
     progress_percentage: 0,
     organization_id: "plcg",
   });
@@ -76,7 +76,7 @@ export default function JobForm() {
           property_address: data.property_address || "",
           total_investment_required: data.total_investment_required || 0,
           expected_roi: data.expected_roi || 0,
-          status: data.status || "planning",
+          status: data.status || "new",
           progress_percentage: data.progress_percentage || 0,
           estimated_start_date: data.estimated_start_date || "",
           estimated_completion_date: data.estimated_completion_date || "",
@@ -102,11 +102,20 @@ export default function JobForm() {
 
     setSaving(true);
     try {
+      // Prepare data - convert empty strings to null for optional date fields
+      const jobData = {
+        ...formData,
+        estimated_start_date: formData.estimated_start_date || null,
+        estimated_completion_date: formData.estimated_completion_date || null,
+      };
+
+      console.log('Submitting job data:', jobData);
+
       if (isEdit) {
         const { error } = await supabase
           .from('jobs')
           .update({
-            ...formData,
+            ...jobData,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
@@ -114,9 +123,12 @@ export default function JobForm() {
         if (error) throw error;
         toast.success("Job updated successfully");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('jobs')
-          .insert([formData]);
+          .insert([jobData])
+          .select();
+
+        console.log('Insert response:', { data, error });
 
         if (error) throw error;
         toast.success("Job created successfully");
@@ -304,11 +316,13 @@ export default function JobForm() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="planning">Planning</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="funding">Funding</SelectItem>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="funding_pending">Funding Pending</SelectItem>
+                        <SelectItem value="funded">Funded</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
