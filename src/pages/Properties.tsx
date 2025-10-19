@@ -269,6 +269,26 @@ const Properties = () => {
     return images[index % images.length];
   };
 
+  // Helper to get valid image URL, filtering out expired Airtable URLs
+  const getPropertyImage = (property: Property, index: number) => {
+    // Check primary_image and images array first
+    if (property.primary_image && !property.primary_image.includes('airtableusercontent.com')) {
+      return property.primary_image;
+    }
+    if (property.images?.[0] && !property.images[0].includes('airtableusercontent.com')) {
+      return property.images[0];
+    }
+
+    // Check accessibility images, but skip expired Airtable URLs
+    const accessibilityImage = (property.accessibility as any)?.images?.[0];
+    if (accessibilityImage && !accessibilityImage.includes('airtableusercontent.com')) {
+      return accessibilityImage;
+    }
+
+    // Fall back to default placeholder
+    return getDefaultImage(index);
+  };
+
   const propertiesStructuredData = {
     "@context": "https://schema.org",
     "@type": "RealEstateAgent",
@@ -411,14 +431,14 @@ const Properties = () => {
                   <Card key={property.id} className="card-elegant group hover:scale-105 transition-all duration-300">
                     <div className="relative overflow-hidden rounded-t-lg">
                       <img
-                        src={
-                          property.primary_image ||
-                          property.images?.[0] ||
-                          (property.accessibility as any)?.images?.[0] ||
-                          getDefaultImage(index)
-                        }
+                        src={getPropertyImage(property, index)}
                         alt={`${property.name} - Step-free accessible interior`}
                         className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          // Fallback to default placeholder if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.src = getDefaultImage(index);
+                        }}
                       />
                       <div className="absolute top-4 left-4 flex gap-2">
                         <Badge variant="default" className="bg-primary/90">
