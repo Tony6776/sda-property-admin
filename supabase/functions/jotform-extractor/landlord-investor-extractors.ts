@@ -201,12 +201,14 @@ function extractLandlordData(answers: Record<string, any>, formId: string) {
     // Skip non-landlord fields
     if (!fieldText && !fieldName) continue
 
-    // Extract landlord name
+    // Extract landlord name - UPDATED with actual field names
     if (
+      fieldName === 'landlorddirectorname' ||       // Landlord/Director Name
+      fieldName === 'individualor' ||               // Individual or Company Representative Name
       fieldText.includes('landlord') && fieldText.includes('name') ||
       fieldText.includes('owner') && fieldText.includes('name') ||
-      fieldText.includes('property owner') ||
-      fieldName.includes('landlord') && fieldName.includes('name')
+      fieldText.includes('director') && fieldText.includes('name') ||
+      fieldText.includes('representative') && fieldText.includes('name')
     ) {
       if (typeof fieldValue === 'object' && fieldValue !== null) {
         const firstName = fieldValue.first || ''
@@ -228,18 +230,21 @@ function extractLandlordData(answers: Record<string, any>, formId: string) {
       continue
     }
 
-    // Extract phone
+    // Extract phone - UPDATED
     if (
-      fieldText.includes('landlord') && fieldText.includes('phone') ||
-      fieldText.includes('owner') && fieldText.includes('phone') ||
+      fieldName === 'phonenumber' ||
+      fieldText.includes('phone') ||
+      fieldText.includes('mobile') ||
       fieldText.includes('contact') && fieldText.includes('number')
     ) {
       phone = String(fieldValue || '').trim()
       continue
     }
 
-    // Extract business name
+    // Extract business name - UPDATED
     if (
+      fieldName === 'companydetails' ||                    // Company Details (if required)
+      fieldText.includes('company') && fieldText.includes('details') ||
       fieldText.includes('business') && fieldText.includes('name') ||
       fieldText.includes('company') && fieldText.includes('name')
     ) {
@@ -247,17 +252,21 @@ function extractLandlordData(answers: Record<string, any>, formId: string) {
       continue
     }
 
-    // Extract ABN
+    // Extract ABN - UPDATED
     if (
+      fieldName === 'abnacnif' ||                          // ABN/ACN (if required)
       fieldText.includes('abn') ||
+      fieldText.includes('acn') ||
       fieldText.includes('australian business number')
     ) {
       abn = String(fieldValue || '').trim()
       continue
     }
 
-    // Extract address
+    // Extract address - UPDATED
     if (
+      fieldName === 'addresscompany' ||                    // Address (Company or Individual)
+      fieldName === 'sdaproperty' ||                       // SDA Property Address
       fieldText.includes('address') && !fieldText.includes('email') ||
       fieldText.includes('location')
     ) {

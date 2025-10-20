@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getFormIdsByType, getFormEntityType } from './form-mapping.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,31 +77,31 @@ serve(async (req) => {
         break
 
       case 'extract_participants':
-        // Auto-fetch all forms if none specified
+        // Use mapped participant form IDs if none specified
         let participantFormIds = requestData.form_ids || []
         if (participantFormIds.length === 0) {
-          const allForms = await getAllJotForms(apiKey!, 1000)
-          participantFormIds = allForms.forms.map((f: any) => f.id)
+          participantFormIds = getFormIdsByType('participant')
+          console.log(`📋 Using ${participantFormIds.length} mapped participant forms`)
         }
         result = await extractParticipantsFromJotform(apiKey!, participantFormIds)
         break
 
       case 'extract_landlords':
-        // Auto-fetch all forms if none specified
+        // Use mapped landlord form IDs if none specified
         let landlordFormIds = requestData.form_ids || []
         if (landlordFormIds.length === 0) {
-          const allForms = await getAllJotForms(apiKey!, 1000)
-          landlordFormIds = allForms.forms.map((f: any) => f.id)
+          landlordFormIds = getFormIdsByType('landlord')
+          console.log(`📋 Using ${landlordFormIds.length} mapped landlord forms`)
         }
         result = await extractLandlordsFromJotform(apiKey!, landlordFormIds)
         break
 
       case 'extract_investors':
-        // Auto-fetch all forms if none specified
+        // Use mapped investor form IDs if none specified
         let investorFormIds = requestData.form_ids || []
         if (investorFormIds.length === 0) {
-          const allForms = await getAllJotForms(apiKey!, 1000)
-          investorFormIds = allForms.forms.map((f: any) => f.id)
+          investorFormIds = getFormIdsByType('investor')
+          console.log(`📋 Using ${investorFormIds.length} mapped investor forms`)
         }
         result = await extractInvestorsFromJotform(apiKey!, investorFormIds)
         break
