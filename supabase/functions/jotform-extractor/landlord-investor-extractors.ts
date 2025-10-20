@@ -11,12 +11,13 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
   )
 
   const results = {
-    total_submissions: 0,
-    landlords_created: 0,
-    landlords_updated: 0,
-    landlords_skipped: 0,
+    total_processed: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
     errors: 0,
-    details: [] as any[]
+    details: [] as any[],
+    message: ''
   }
 
   for (const formId of formIds) {
@@ -39,7 +40,7 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
       const submissions = data.content || []
 
       console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
-      results.total_submissions += submissions.length
+      results.total_processed += submissions.length
 
       // Process each submission
       for (const submission of submissions) {
@@ -53,7 +54,7 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
           // Skip if no valid landlord data
           if (!landlordData.full_name && !landlordData.email) {
             console.log(`⏭️  Submission ${submissionID} has no landlord data`)
-            results.landlords_skipped++
+            results.skipped++
             continue
           }
 
@@ -106,7 +107,7 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
               results.errors++
             } else {
               console.log(`✅ Updated landlord: ${existingLandlord.id}`)
-              results.landlords_updated++
+              results.updated++
               results.details.push({
                 submission_id: submissionID,
                 form_id: formId,
@@ -146,7 +147,7 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
               results.errors++
             } else {
               console.log(`✅ Created landlord: ${created.id}`)
-              results.landlords_created++
+              results.inserted++
               results.details.push({
                 submission_id: submissionID,
                 form_id: formId,
@@ -172,6 +173,7 @@ async function extractLandlordsFromJotform(apiKey: string, formIds: string[]) {
     }
   }
 
+  results.message = `Landlord extraction completed: ${results.inserted} created, ${results.updated} updated, ${results.skipped} skipped from ${results.total_processed} submissions`
   return results
 }
 
@@ -337,12 +339,13 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
   )
 
   const results = {
-    total_submissions: 0,
-    investors_created: 0,
-    investors_updated: 0,
-    investors_skipped: 0,
+    total_processed: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
     errors: 0,
-    details: [] as any[]
+    details: [] as any[],
+    message: ''
   }
 
   for (const formId of formIds) {
@@ -365,7 +368,7 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
       const submissions = data.content || []
 
       console.log(`✅ Found ${submissions.length} submissions for form ${formId}`)
-      results.total_submissions += submissions.length
+      results.total_processed += submissions.length
 
       // Process each submission
       for (const submission of submissions) {
@@ -379,7 +382,7 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
           // Skip if no valid investor data
           if (!investorData.full_name || !investorData.email) {
             console.log(`⏭️  Submission ${submissionID} has no investor data`)
-            results.investors_skipped++
+            results.skipped++
             continue
           }
 
@@ -416,7 +419,7 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
               results.errors++
             } else {
               console.log(`✅ Updated investor: ${existing.id}`)
-              results.investors_updated++
+              results.updated++
               results.details.push({
                 submission_id: submissionID,
                 form_id: formId,
@@ -454,7 +457,7 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
               results.errors++
             } else {
               console.log(`✅ Created investor: ${created.id}`)
-              results.investors_created++
+              results.inserted++
               results.details.push({
                 submission_id: submissionID,
                 form_id: formId,
@@ -480,6 +483,7 @@ async function extractInvestorsFromJotform(apiKey: string, formIds: string[]) {
     }
   }
 
+  results.message = `Investor extraction completed: ${results.inserted} created, ${results.updated} updated, ${results.skipped} skipped from ${results.total_processed} submissions`
   return results
 }
 

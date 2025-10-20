@@ -76,15 +76,33 @@ serve(async (req) => {
         break
 
       case 'extract_participants':
-        result = await extractParticipantsFromJotform(apiKey!, requestData.form_ids || [])
+        // Auto-fetch all forms if none specified
+        let participantFormIds = requestData.form_ids || []
+        if (participantFormIds.length === 0) {
+          const allForms = await getAllJotForms(apiKey!, 1000)
+          participantFormIds = allForms.forms.map((f: any) => f.id)
+        }
+        result = await extractParticipantsFromJotform(apiKey!, participantFormIds)
         break
 
       case 'extract_landlords':
-        result = await extractLandlordsFromJotform(apiKey!, requestData.form_ids || [])
+        // Auto-fetch all forms if none specified
+        let landlordFormIds = requestData.form_ids || []
+        if (landlordFormIds.length === 0) {
+          const allForms = await getAllJotForms(apiKey!, 1000)
+          landlordFormIds = allForms.forms.map((f: any) => f.id)
+        }
+        result = await extractLandlordsFromJotform(apiKey!, landlordFormIds)
         break
 
       case 'extract_investors':
-        result = await extractInvestorsFromJotform(apiKey!, requestData.form_ids || [])
+        // Auto-fetch all forms if none specified
+        let investorFormIds = requestData.form_ids || []
+        if (investorFormIds.length === 0) {
+          const allForms = await getAllJotForms(apiKey!, 1000)
+          investorFormIds = allForms.forms.map((f: any) => f.id)
+        }
+        result = await extractInvestorsFromJotform(apiKey!, investorFormIds)
         break
 
       default:
