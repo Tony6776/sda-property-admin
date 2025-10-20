@@ -9,6 +9,7 @@ import { PropertyListEnhanced } from "@/components/admin/PropertyListEnhanced";
 import { AirtableSync } from "@/components/admin/AirtableSync";
 import { AIAssistant } from "@/components/admin/AIAssistant";
 import { SetupVerification } from "@/components/admin/SetupVerification";
+import { JotformDataExtractor } from "@/components/admin/JotformDataExtractor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -160,6 +161,9 @@ export default function AdminDashboard() {
 
             {/* AI Assistant */}
             <AIAssistant />
+
+            {/* Jotform Data Extraction */}
+            <JotformDataExtractor />
 
             {/* Airtable Sync */}
             <AirtableSync onSyncComplete={fetchStats} />
