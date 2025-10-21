@@ -4,9 +4,6 @@
 # working directory name when running `supabase init`.
 project_id = "sda-property-admin"
 
-# This is the project ref for the linked Supabase project (for CI/CD)
-linked_project = "bqvptfdxnrzculgjcnjo"
-
 [api]
 enabled = true
 # Port to use for the API URL.
