@@ -28,12 +28,19 @@ jobs:
         echo "Linking to Supabase project..."
         supabase link --project-ref bqvptfdxnrzculgjcnjo
 
-    - name: Apply AI Workflows Migration
+    - name: Check Migration Status
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       run: |
-        echo "Applying migration: 20251019_ai_workflows.sql"
-        supabase db push --include-all
+        echo "Checking migration status..."
+        supabase migration list || true
+
+    - name: Apply Pending Migrations
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      run: |
+        echo "Applying pending migrations only (not re-applying existing ones)..."
+        supabase db push
 
     - name: Create Storage Bucket
       env:
