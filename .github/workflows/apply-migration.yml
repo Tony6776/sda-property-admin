@@ -24,9 +24,11 @@ jobs:
     - name: Apply Migrations to Remote Database
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       run: |
-        echo "Applying migrations using linked project from config.toml..."
-        supabase db push
+        echo "Applying migrations using pooler connection..."
+        DB_URL="postgresql://postgres.bqvptfdxnrzculgjcnjo:${SUPABASE_DB_PASSWORD}@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
+        supabase db push --db-url "$DB_URL"
 
     - name: Create Storage Bucket
       env:
