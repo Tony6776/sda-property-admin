@@ -24,9 +24,10 @@ jobs:
     - name: Link Supabase Project
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       run: |
         echo "Linking to Supabase project..."
-        supabase link --project-ref bqvptfdxnrzculgjcnjo
+        supabase link --project-ref bqvptfdxnrzculgjcnjo --password "$SUPABASE_DB_PASSWORD"
 
     - name: Check Migration Status
       env:
